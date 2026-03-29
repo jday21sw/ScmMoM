@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BPM.UI.ViewModels"
+        x:Class="BPM.UI.Views.LoginWindow"
+        Title="BPM — Connect to GitHub"
+        Icon="avares://BPM.UI/Assets/bpm-icon.ico"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+  <Design.DataContext>
+    <vm:LoginViewModel />
+  </Design.DataContext>
+
+  <Border Padding="32">
+    <StackPanel Spacing="16" VerticalAlignment="Center">
+
+      <TextBlock Text="BPM — Browser Page Monitor"
+                 FontSize="22" FontWeight="Bold"
+                 HorizontalAlignment="Center" />
+
+      <TextBlock Text="Connect to GitHub to monitor your repositories."
+                 HorizontalAlignment="Center"
+                 Foreground="Gray" />
+
+      <Separator Margin="0,8" />
+
+      <TextBlock Text="GitHub Username" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Username}"
+               Watermark="your-github-username"
+               IsEnabled="{Binding !IsConnecting}" />
+
+      <TextBlock Text="Personal Access Token" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Token}"
+               Watermark="ghp_..."
+               PasswordChar="●"
+               IsEnabled="{Binding !IsConnecting}" />
+
+      <TextBlock Text="{Binding ErrorMessage}"
+                 Foreground="Red"
+                 IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                 TextWrapping="Wrap" />
+
+      <Button Content="Connect"
+              Command="{Binding ConnectCommand}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Center"
+              Classes="accent"
+              Height="40"
+              FontSize="15" />
+
+      <ProgressBar IsIndeterminate="True"
+                   IsVisible="{Binding IsConnecting}"
+                   Height="4" />
+
+    </StackPanel>
+  </Border>
+
+</Window>

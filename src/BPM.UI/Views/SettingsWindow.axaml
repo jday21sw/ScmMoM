@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BPM.UI.ViewModels"
+        x:Class="BPM.UI.Views.SettingsWindow"
+        Title="BPM — Settings"
+        Icon="avares://BPM.UI/Assets/bpm-icon.ico"
+        Width="500" Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+  <Design.DataContext>
+    <vm:SettingsViewModel />
+  </Design.DataContext>
+
+  <Border Padding="24">
+    <ScrollViewer>
+    <StackPanel Spacing="14">
+
+      <TextBlock Text="Settings" FontSize="20" FontWeight="Bold" />
+      <Separator />
+
+      <TextBlock Text="Organization" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Organization}" Watermark="e.g. 21sw-us" />
+
+      <TextBlock Text="Repositories (comma-separated)" FontWeight="SemiBold" />
+      <TextBox Text="{Binding RepositoriesCsv}"
+               Watermark="tsel, meta-21sw, ..."
+               AcceptsReturn="False"
+               TextWrapping="Wrap"
+               Height="60" />
+
+      <TextBlock Text="Refresh Interval (seconds)" FontWeight="SemiBold" />
+      <NumericUpDown Value="{Binding RefreshIntervalSeconds}"
+                     Minimum="30"
+                     Maximum="3600"
+                     Increment="30"
+                     FormatString="0" />
+
+      <CheckBox Content="Enable desktop notifications"
+                IsChecked="{Binding NotificationsEnabled}" />
+
+      <Separator />
+
+      <TextBlock Text="Theme" FontWeight="SemiBold" />
+      <ComboBox SelectedItem="{Binding ThemeMode}" Width="200" Name="ThemeComboBox" />
+
+      <Separator />
+
+      <TextBlock Text="Web Dashboard" FontWeight="SemiBold" />
+      <CheckBox Content="Enable web dashboard server"
+                IsChecked="{Binding WebServerEnabled}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="Port:" VerticalAlignment="Center" />
+        <NumericUpDown Value="{Binding WebServerPort}"
+                       Minimum="1024"
+                       Maximum="65535"
+                       Increment="1"
+                       FormatString="0"
+                       Width="120" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding StatusMessage}"
+                 Foreground="Green"
+                 IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                 TextWrapping="Wrap" />
+
+      <Separator />
+
+      <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+        <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" />
+        <Button Content="Close" Name="CloseButton" Width="100" HorizontalContentAlignment="Center" />
+      </StackPanel>
+
+    </StackPanel>
+    </ScrollViewer>
+  </Border>
+
+</Window>
