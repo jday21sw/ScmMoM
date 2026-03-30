@@ -83,16 +83,16 @@ public partial class App : Application
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
 
         var accountManager = Services.GetRequiredService<AccountManager>();
-        var provider = accountManager.ActiveProvider!;
         var configService = Services.GetRequiredService<ConfigService>();
         var notificationService = Services.GetRequiredService<NotificationService>();
-        _dashboardVm = new DashboardViewModel(provider, configService, notificationService)
+        _dashboardVm = new DashboardViewModel(accountManager, configService, notificationService)
         {
             Username = authenticatedUsername
         };
 
         // Check token scopes for excessive permissions
-        var scopeWarning = provider.CheckTokenScopes();
+        var provider = accountManager.ActiveProvider;
+        var scopeWarning = provider?.CheckTokenScopes();
         if (scopeWarning != null)
         {
             _dashboardVm.ScopeWarning = $"\u26a0 {scopeWarning.Message}";
@@ -152,12 +152,11 @@ public partial class App : Application
         if (_dashboardVm == null) return;
         var configService = Services.GetRequiredService<ConfigService>();
         var accountManager = Services.GetRequiredService<AccountManager>();
-        var provider = accountManager.ActiveProvider;
-        if (provider == null) return;
         var port = configService.Config.WebServerPort;
+        var psk = configService.Config.ApiPsk;
 
         _webServer?.Stop();
-        _webServer = new ScmWebServer(_dashboardVm, provider, port);
+        _webServer = new ScmWebServer(_dashboardVm, accountManager, port, psk);
         _webServer.Start();
     }
 

@@ -4,9 +4,9 @@
         x:Class="ScmMoM.UI.Views.CompactWindow"
         Title="ScmMoM"
         Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
-        Width="320" Height="80"
-        MinWidth="320" MinHeight="80"
-        MaxWidth="320" MaxHeight="80"
+        Width="460" Height="80"
+        MinWidth="460" MinHeight="80"
+        MaxWidth="460" MaxHeight="80"
         CanResize="False"
         SystemDecorations="None"
         Topmost="True"
@@ -48,6 +48,22 @@
           <TextBlock Text="⚡" FontSize="16" VerticalAlignment="Center" />
           <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
             <TextBlock Text="{Binding CiRuns.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
+          </Border>
+        </StackPanel>
+
+        <!-- Notifications -->
+        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="Notifications">
+          <TextBlock Text="🔔" FontSize="16" VerticalAlignment="Center" />
+          <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Notifications.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
+          </Border>
+        </StackPanel>
+
+        <!-- Issues -->
+        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="Issues">
+          <TextBlock Text="📌" FontSize="16" VerticalAlignment="Center" />
+          <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Issues.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
           </Border>
         </StackPanel>
       </StackPanel>

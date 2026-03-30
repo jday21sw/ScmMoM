@@ -1,212 +1,164 @@
-# BPM — Browser Page Monitor
+# ScmMoM — Source Code Monitor of Monitors
 
-A cross-platform .NET 9 desktop application that monitors your GitHub repositories. Built with [Avalonia UI](https://avaloniaui.net/) — runs on **Windows**, **macOS**, and **Linux**.
+A cross-platform .NET 9 desktop application that monitors your repositories across **GitHub**, **GitLab**, and **Gitea** — all from a single dashboard. Built with [Avalonia UI](https://avaloniaui.net/) — runs on **Windows**, **macOS**, and **Linux**.
 
 ## Features
 
-- **Review Requests** — See all PRs where you're a requested reviewer across multiple repos
-- **My Pull Requests** — Track your authored PRs with status (open/draft/merged/closed), click to view comments
-- **GitHub Actions** — Monitor latest workflow runs with status badges, click to view annotations
-- **Clickable Links** — Open any PR or Action run directly in your browser
+- **Multi-SCM Support** — Monitor GitHub, GitLab, and Gitea from one app
+- **Multi-Account** — Connect multiple accounts simultaneously, each with its own provider/server
+- **Review Requests** — See all PRs/MRs where you're a requested reviewer
+- **Open Pull Requests / Merge Requests** — Track your authored PRs/MRs with status, click to view comments
+- **CI Runs** — Monitor GitHub Actions, GitLab Pipelines, and Gitea Actions with status badges
+- **Notifications** — Aggregate notifications/todos from all connected SCM platforms
+- **Issues** — View assigned issues across all accounts
+- **Sidebar Account Switcher** — Visual sidebar showing all accounts with health status dots
+- **Clickable Links** — Open any PR/MR or CI run directly in your browser
 - **Auto-Refresh** — Configurable polling interval (default: 5 minutes)
 - **System Tray** — Minimizes to tray; right-click for quick actions
-- **Desktop Notifications** — Alerts for new review requests and failed action runs
-- **Rate Limit Display** — Real-time GitHub API rate limit counter in the status bar
-- **Compact Mode** — Small always-on-top overlay window showing count badges (📋🔀⚡)
-- **Light/Dark/System Theme** — Three-way theme toggle in Settings, applied immediately
-- **Web Dashboard** — Embedded HTTP server that serves a browser-based dashboard at `http://localhost:5123`, auto-synced with the desktop app
-- **Configurable** — Edit organization, repository list, refresh interval, theme, and web dashboard settings
+- **Desktop Notifications** — Alerts for new review requests and failed CI runs
+- **Rate Limit Display** — Real-time API rate limit counter in the status bar
+- **Compact Mode** — Small always-on-top overlay with count badges (📋🔀⚡🔔📌)
+- **Light/Dark/System Theme** — Three-way theme toggle in Settings
+- **Web Dashboard** — Embedded HTTP server with browser-based dashboard, PSK-authenticated API
+- **Secure Token Storage** — Optional OS keyring storage (Windows Credential Manager, macOS Keychain, Linux libsecret)
+- **Token Audit** — Warns about excessive token permissions on classic PATs
 
 ## Quick Start
 
 ### Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- A GitHub Personal Access Token (see [Token Setup](#token-setup) below)
+- A Personal Access Token for your SCM platform(s)
 
 ### Build & Run
 
 ```bash
-# Clone the repo
-git clone <this-repo-url>
-cd BPM
+git clone https://github.com/jday21sw/ScmMoM.git
+cd ScmMoM
 
-# Build
-dotnet build BPM.sln
-
-# Run
-dotnet run --project src/BPM.UI
+dotnet build ScmMoM.sln
+dotnet run --project src/ScmMoM.UI
 ```
 
-On first launch, enter your **GitHub username** and **Personal Access Token** in the login window.
+On first launch, add your accounts via the login window — select the provider type (GitHub/GitLab/Gitea), enter your username and token, then click **Connect & Launch**.
 
 ## Token Setup
 
-BPM needs a GitHub Personal Access Token to read your repositories. The token is stored **in-memory only** — it is never written to disk. Choose one of the options below:
+### GitHub
 
-### Option A — `gh` CLI (Quickest)
-
-If you have the [GitHub CLI](https://cli.github.com/) installed:
+**Required scopes (classic PAT):** `repo`, `workflow`, `read:org`
 
 ```bash
-# Login with the required scopes
 gh auth login --scopes repo,workflow,read:org
-
-# Copy the token
 gh auth token
 ```
 
-Paste the output token into BPM at startup.
+Or create a **fine-grained PAT** with `Pull requests: Read`, `Actions: Read`, `Metadata: Read`.
 
-**Required classic scopes:**
-| Scope | Purpose |
-|-------|---------|
-| `repo` | Read PRs, repo metadata (needed for private repos) |
-| `workflow` | Read GitHub Actions workflow runs |
-| `read:org` | Read organization membership |
+### GitLab
 
-### Option B — Fine-Grained PAT via Browser (Most Secure, Recommended)
+Create a Personal Access Token at `Settings → Access Tokens` with the `read_api` scope. For self-hosted GitLab, enter your server URL when adding the account.
 
-Click this pre-filled link to create a fine-grained token with the correct permissions:
+### Gitea
 
-**[Create Fine-Grained PAT for BPM](https://github.com/settings/personal-access-tokens/new?name=BPM-Browser-Page-Monitor&description=Token+for+BPM+app+to+monitor+PRs+and+GitHub+Actions&target_name=21sw-us&pull_requests=read&actions=read&metadata=read)**
-
-On the GitHub page:
-1. Verify the pre-filled permissions: `Pull requests: Read`, `Actions: Read`, `Metadata: Read`
-2. Under **Repository access**, select **All repositories** or choose the specific repos: `tsel`, `meta-21sw`, `meta-21sw-extras`, `LAVA-docker-compose`, `TSEL-GitHub-runner`
-3. Set an **expiration** (e.g., 90 days)
-4. Click **Generate token** and copy it
-
-### Option C — Classic PAT via Browser (Manual)
-
-1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**
-2. Click **Generate new token (classic)**
-3. Check these scopes:
-   - ✅ `repo`
-   - ✅ `workflow`
-   - ✅ `read:org`
-4. Generate and copy the token
+Create a token at `Settings → Applications → Manage Access Tokens`. For self-hosted Gitea, enter your server URL when adding the account.
 
 ## Configuration
 
-Edit `appsettings.json` (in the app's output directory) or use the in-app **Settings** dialog:
+Use the in-app **Settings** dialog to configure per-account repositories and global settings. Settings are stored in `appsettings.json`:
 
 ```json
 {
-  "Organization": "21sw-us",
-  "Repositories": [
-    "tsel",
-    "meta-21sw",
-    "meta-21sw-extras",
-    "LAVA-docker-compose",
-    "TSEL-GitHub-runner"
+  "Accounts": [
+    {
+      "Id": "abc123",
+      "ProviderType": "GitHub",
+      "DisplayName": "Work GitHub",
+      "Organization": "my-org",
+      "Repositories": ["repo1", "repo2"],
+      "RememberToken": true
+    }
   ],
   "RefreshIntervalSeconds": 300,
   "NotificationsEnabled": true,
   "ThemeMode": "System",
   "WebServerEnabled": false,
-  "WebServerPort": 5123
+  "WebServerPort": 5123,
+  "ApiPsk": null
 }
 ```
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `Organization` | GitHub organization to monitor | `21sw-us` |
-| `Repositories` | List of repository names to query | 5 repos listed above |
-| `RefreshIntervalSeconds` | Auto-refresh interval (min: 30) | `300` (5 min) |
+| `Accounts` | List of SCM account configurations | `[]` |
+| `RefreshIntervalSeconds` | Auto-refresh interval (min: 30) | `300` |
 | `NotificationsEnabled` | Desktop notification alerts | `true` |
-| `ThemeMode` | UI theme: `System`, `Light`, or `Dark` | `System` |
-| `WebServerEnabled` | Enable the embedded web dashboard server | `false` |
-| `WebServerPort` | Port for the web dashboard | `5123` |
+| `ThemeMode` | `System`, `Light`, or `Dark` | `System` |
+| `WebServerEnabled` | Enable embedded web dashboard | `false` |
+| `WebServerPort` | Port for web dashboard | `5123` |
+| `ApiPsk` | Pre-shared key for API authentication | `null` |
+
+## Web Dashboard & Remote API
+
+Enable in **Settings → Web Dashboard** to serve a browser-accessible dashboard at `http://localhost:5123`.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/status` | Dashboard status summary |
+| GET | `/api/reviews` | Review requests |
+| GET | `/api/pull-requests` | Open pull requests |
+| GET | `/api/actions` | CI runs |
+| GET | `/api/notifications` | Notifications |
+| GET | `/api/issues` | Assigned issues |
+| GET | `/api/accounts` | Connected accounts |
+| POST | `/api/refresh` | Trigger a data refresh |
+
+### PSK Authentication
+
+Generate a Pre-Shared Key in **Settings → API Security**. Include it as `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: YOUR_PSK" http://localhost:5123/api/status
+```
 
 ## Compact Mode
 
-Click **▪ Compact** in the header bar (or select from the tray menu) to switch to a minimal always-on-top overlay showing review/PR/action counts. Click **Expand** to return to the full window.
-
-## Web Dashboard
-
-Enable the web dashboard in **Settings → Web Dashboard** to serve a browser-accessible version of BPM at `http://localhost:5123`. The web frontend polls the desktop app for data — no GitHub token is exposed to the browser.
-
-- Automatically follows your browser's light/dark mode preference
-- Tabs for Review Requests, Open Pull Requests, and GitHub Actions
-- Click any row to view comments or annotations inline
+Click **▪ Compact** to switch to a minimal always-on-top overlay showing all count badges. Click **Expand** to return to full dashboard.
 
 ## System Tray
 
-- **Close the window** → app minimizes to the system tray
+- **Close the window** → app minimizes to tray
 - **Right-click tray icon** → Open Dashboard, Refresh Now, Quit
-- **Click tray icon** → restore the dashboard window
-
-> **Linux note:** System tray requires `libappindicator3` or equivalent. Install via your package manager if the tray icon doesn't appear.
-
-## Rate Limiting
-
-BPM uses ~15 API calls per refresh (3 queries × 5 repos). At the default 5-minute interval, this is ~180 calls/hour — well under GitHub's 5,000/hour limit for authenticated requests. The status bar shows your current remaining calls and reset countdown.
-
-| Color | Meaning |
-|-------|---------|
-| 🟢 Green | > 1,000 remaining |
-| 🟡 Orange | 100–1,000 remaining |
-| 🔴 Red | < 100 remaining |
+- **Click tray icon** → restore dashboard
 
 ## Architecture
 
-- **BPM.Core** — Class library with models and services (no UI dependency)
-- **BPM.UI** — Avalonia desktop application + embedded Kestrel web server
-- **MVVM** pattern with ReactiveUI
-- **Octokit.NET** for GitHub API interaction
-- **ASP.NET Core** (embedded) for the web dashboard proxy
+- **ScmMoM.Core** — Class library: models, services, SCM providers (no UI dependency)
+- **ScmMoM.UI** — Avalonia desktop app + embedded Kestrel web server
+- **IScmProvider** — Unified interface for GitHub, GitLab, Gitea
+- **AccountManager** — Multi-provider registry and factory
+- **MVVM** with ReactiveUI
+- **Octokit.NET** for GitHub, **NGitLab** for GitLab, **HttpClient** for Gitea
+- **ASP.NET Core** (embedded) for web dashboard
 - **DI** via `Microsoft.Extensions.DependencyInjection`
 
 ## Cross-Platform Publishing
 
-Build self-contained executables for each platform using `dotnet publish`. Each produces a single-directory deployment with all dependencies included.
-
-### Windows
-
 ```bash
-dotnet publish src/BPM.UI -c Release -r win-x64 --self-contained -o publish/win-x64
+# Windows
+dotnet publish src/ScmMoM.UI -c Release -r win-x64 --self-contained -o publish/win-x64
+
+# macOS (Apple Silicon)
+dotnet publish src/ScmMoM.UI -c Release -r osx-arm64 --self-contained -o publish/osx-arm64
+
+# macOS (Intel)
+dotnet publish src/ScmMoM.UI -c Release -r osx-x64 --self-contained -o publish/osx-x64
+
+# Linux
+dotnet publish src/ScmMoM.UI -c Release -r linux-x64 --self-contained -o publish/linux-x64
 ```
-
-### macOS
-
-```bash
-# Intel Mac
-dotnet publish src/BPM.UI -c Release -r osx-x64 --self-contained -o publish/osx-x64
-
-# Apple Silicon (M1/M2/M3)
-dotnet publish src/BPM.UI -c Release -r osx-arm64 --self-contained -o publish/osx-arm64
-```
-
-### Linux
-
-```bash
-dotnet publish src/BPM.UI -c Release -r linux-x64 --self-contained -o publish/linux-x64
-```
-
-### Single-File Executable (optional)
-
-Add `-p:PublishSingleFile=true` to produce a single executable:
-
-```bash
-dotnet publish src/BPM.UI -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/win-x64-single
-```
-
-> **Note:** The `wwwroot/` folder (web dashboard assets) is copied alongside the executable. For single-file builds, ensure the `wwwroot/` directory is distributed with the executable.
-
-### Next Steps for Automated CI/CD
-
-To automate builds for all platforms, add a GitHub Actions workflow (`.github/workflows/release.yml`) that:
-
-1. Triggers on tag push (e.g., `v1.0.0`)
-2. Runs `dotnet publish` in a matrix for `win-x64`, `osx-x64`, `osx-arm64`, `linux-x64`
-3. Zips each output directory
-4. Creates a GitHub Release with the zipped artifacts attached
-
-For platform-specific packaging:
-- **Windows** — Use [Inno Setup](https://jrsoftware.org/issetup.php) or MSIX for an installer
-- **macOS** — Bundle as a `.app` using the [Avalonia packaging guide](https://docs.avaloniaui.net/docs/deployment/macOS)
-- **Linux** — Create a `.deb`/`.rpm` package or distribute as an AppImage
 
 ## License
 

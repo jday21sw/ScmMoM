@@ -14,6 +14,9 @@ public class AppConfig
     public bool WebServerEnabled { get; set; } = false;
     public int WebServerPort { get; set; } = 5123;
 
+    // API pre-shared key for remote access
+    public string? ApiPsk { get; set; }
+
     // Legacy fields — used only for migration from old flat config format
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Organization { get; set; }

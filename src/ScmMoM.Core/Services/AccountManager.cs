@@ -15,6 +15,8 @@ public class AccountManager
         return account.ProviderType switch
         {
             ScmProviderType.GitHub => new GitHubProvider(account),
+            ScmProviderType.GitLab => new GitLabProvider(account),
+            ScmProviderType.Gitea => new GiteaProvider(account),
             _ => throw new NotSupportedException($"Provider type {account.ProviderType} is not yet supported.")
         };
     }

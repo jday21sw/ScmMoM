@@ -9,9 +9,21 @@ using ReactiveUI;
 
 namespace ScmMoM.UI.ViewModels;
 
+/// <summary>Represents an account entry in the sidebar.</summary>
+public class AccountItemViewModel : ReactiveObject
+{
+    public string AccountId { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public string ProviderIcon { get; init; } = string.Empty; // emoji icon
+    public string ProviderType { get; init; } = string.Empty;
+
+    private string _statusDot = "🟢";
+    public string StatusDot { get => _statusDot; set => this.RaiseAndSetIfChanged(ref _statusDot, value); }
+}
+
 public class DashboardViewModel : ReactiveObject, IDisposable
 {
-    private readonly IScmProvider _provider;
+    private readonly AccountManager _accountManager;
     private readonly ConfigService _configService;
     private readonly NotificationService _notificationService;
     private DispatcherTimer? _refreshTimer;
@@ -20,7 +32,12 @@ public class DashboardViewModel : ReactiveObject, IDisposable
     public ObservableCollection<ReviewRequestInfo> ReviewRequests { get; } = new();
     public ObservableCollection<PullRequestInfo> OpenPullRequests { get; } = new();
     public ObservableCollection<CiRunInfo> CiRuns { get; } = new();
+    public ObservableCollection<NotificationInfo> Notifications { get; } = new();
+    public ObservableCollection<IssueInfo> Issues { get; } = new();
     public ObservableCollection<NotificationService.NotificationEvent> PendingNotifications { get; } = new();
+
+    // Sidebar account list
+    public ObservableCollection<AccountItemViewModel> AccountItems { get; } = new();
 
     // Detail panel collections
     public ObservableCollection<AnnotationInfo> Annotations { get; } = new();
@@ -162,9 +179,12 @@ public class DashboardViewModel : ReactiveObject, IDisposable
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
     public ReactiveCommand<string, Unit> OpenUrlCommand { get; }
 
-    public DashboardViewModel(IScmProvider provider, ConfigService configService, NotificationService notificationService)
+    /// <summary>The currently selected provider for detail panel operations (annotations, comments).</summary>
+    public IScmProvider? ActiveProvider => _accountManager.ActiveProvider;
+
+    public DashboardViewModel(AccountManager accountManager, ConfigService configService, NotificationService notificationService)
     {
-        _provider = provider;
+        _accountManager = accountManager;
         _configService = configService;
         _notificationService = notificationService;
 
@@ -173,6 +193,8 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshDataAsync);
         OpenUrlCommand = ReactiveCommand.Create<string>(OpenUrl);
+
+        RebuildAccountItems();
     }
 
     public void StartAutoRefresh()
@@ -194,6 +216,29 @@ public class DashboardViewModel : ReactiveObject, IDisposable
         StartAutoRefresh();
     }
 
+    public void RebuildAccountItems()
+    {
+        AccountItems.Clear();
+        foreach (var kvp in _accountManager.Providers)
+        {
+            var provider = kvp.Value;
+            var config = _configService.Config.Accounts.FirstOrDefault(a => a.Id == provider.AccountId);
+            AccountItems.Add(new AccountItemViewModel
+            {
+                AccountId = provider.AccountId,
+                DisplayName = config?.DisplayName ?? provider.AccountId,
+                ProviderIcon = provider.ProviderType switch
+                {
+                    ScmProviderType.GitHub => "🐙",
+                    ScmProviderType.GitLab => "🦊",
+                    ScmProviderType.Gitea => "🍵",
+                    _ => "🔗"
+                },
+                ProviderType = provider.ProviderType.ToString()
+            });
+        }
+    }
+
     private async Task RefreshDataAsync()
     {
         if (IsLoading) return;
@@ -203,34 +248,96 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
         try
         {
-            var reviewsTask = _provider.GetReviewRequestsAsync();
-            var prsTask = _provider.GetOpenPullRequestsAsync();
-            var ciRunsTask = _provider.GetLatestCiRunsAsync();
+            var allReviews = new List<ReviewRequestInfo>();
+            var allPrs = new List<PullRequestInfo>();
+            var allCiRuns = new List<CiRunInfo>();
+            var allNotifications = new List<NotificationInfo>();
+            var allIssues = new List<IssueInfo>();
 
-            await Task.WhenAll(reviewsTask, prsTask, ciRunsTask);
+            // Fetch data from all providers in parallel
+            var providers = _accountManager.Providers.Values.ToList();
+            var tasks = providers.Select(async provider =>
+            {
+                try
+                {
+                    var reviewsTask = provider.GetReviewRequestsAsync();
+                    var prsTask = provider.GetOpenPullRequestsAsync();
+                    var ciRunsTask = provider.GetLatestCiRunsAsync();
+                    var notificationsTask = provider.GetNotificationsAsync();
+                    var issuesTask = provider.GetAssignedIssuesAsync();
 
-            var reviews = await reviewsTask;
-            var prs = await prsTask;
-            var ciRuns = await ciRunsTask;
+                    await Task.WhenAll(reviewsTask, prsTask, ciRunsTask, notificationsTask, issuesTask);
+
+                    return (
+                        Reviews: (IReadOnlyList<ReviewRequestInfo>)await reviewsTask,
+                        Prs: (IReadOnlyList<PullRequestInfo>)await prsTask,
+                        CiRuns: (IReadOnlyList<CiRunInfo>)await ciRunsTask,
+                        Notifications: (IReadOnlyList<NotificationInfo>)await notificationsTask,
+                        Issues: (IReadOnlyList<IssueInfo>)await issuesTask,
+                        Provider: provider,
+                        Error: (string?)null
+                    );
+                }
+                catch (Exception ex)
+                {
+                    return (
+                        Reviews: (IReadOnlyList<ReviewRequestInfo>)Array.Empty<ReviewRequestInfo>(),
+                        Prs: (IReadOnlyList<PullRequestInfo>)Array.Empty<PullRequestInfo>(),
+                        CiRuns: (IReadOnlyList<CiRunInfo>)Array.Empty<CiRunInfo>(),
+                        Notifications: (IReadOnlyList<NotificationInfo>)Array.Empty<NotificationInfo>(),
+                        Issues: (IReadOnlyList<IssueInfo>)Array.Empty<IssueInfo>(),
+                        Provider: provider,
+                        Error: (string?)ex.Message
+                    );
+                }
+            });
+
+            var results = await Task.WhenAll(tasks);
+
+            foreach (var result in results)
+            {
+                allReviews.AddRange(result.Reviews);
+                allPrs.AddRange(result.Prs);
+                allCiRuns.AddRange(result.CiRuns);
+                allNotifications.AddRange(result.Notifications);
+                allIssues.AddRange(result.Issues);
+
+                // Update sidebar status dot
+                var accountItem = AccountItems.FirstOrDefault(a => a.AccountId == result.Provider.AccountId);
+                if (accountItem != null)
+                    accountItem.StatusDot = result.Error != null ? "🔴" : "🟢";
+
+                if (result.Error != null && providers.Count > 1)
+                    ErrorMessage += $"[{result.Provider.AccountId}] {result.Error}\n";
+                else if (result.Error != null)
+                    ErrorMessage = result.Error;
+            }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 ReviewRequests.Clear();
-                foreach (var r in reviews) ReviewRequests.Add(r);
+                foreach (var r in allReviews.OrderByDescending(r => r.CreatedAt)) ReviewRequests.Add(r);
 
                 OpenPullRequests.Clear();
-                foreach (var pr in prs) OpenPullRequests.Add(pr);
+                foreach (var pr in allPrs.OrderByDescending(p => p.UpdatedAt)) OpenPullRequests.Add(pr);
 
                 CiRuns.Clear();
-                foreach (var a in ciRuns) CiRuns.Add(a);
+                foreach (var a in allCiRuns.OrderByDescending(c => c.CreatedAt)) CiRuns.Add(a);
+
+                Notifications.Clear();
+                foreach (var n in allNotifications.OrderByDescending(n => n.UpdatedAt)) Notifications.Add(n);
+
+                Issues.Clear();
+                foreach (var i in allIssues.OrderByDescending(i => i.UpdatedAt)) Issues.Add(i);
 
                 // Hide detail panels on refresh so stale data isn't shown
                 IsActionDetailVisible = false;
                 IsPrDetailVisible = false;
             });
 
-            // Update rate limit display
-            if (_provider.LastRateLimit is { } rl)
+            // Update rate limit display — use the first provider that has rate limit info
+            var rl = providers.Select(p => p.LastRateLimit).FirstOrDefault(r => r != null);
+            if (rl != null)
             {
                 RateLimitRemaining = rl.Remaining;
                 RateLimitTotal = rl.Limit;
@@ -247,8 +354,8 @@ public class DashboardViewModel : ReactiveObject, IDisposable
             // Detect notifications (skip first load to avoid spam)
             if (!_isFirstLoad && _configService.Config.NotificationsEnabled)
             {
-                var newReviews = _notificationService.DetectNewReviewRequests(reviews);
-                var newFailures = _notificationService.DetectFailedCiRuns(ciRuns);
+                var newReviews = _notificationService.DetectNewReviewRequests(allReviews);
+                var newFailures = _notificationService.DetectFailedCiRuns(allCiRuns);
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -258,15 +365,15 @@ public class DashboardViewModel : ReactiveObject, IDisposable
             }
             else if (_isFirstLoad)
             {
-                // Populate baseline for diff detection
-                _notificationService.DetectNewReviewRequests(reviews);
-                _notificationService.DetectFailedCiRuns(ciRuns);
+                _notificationService.DetectNewReviewRequests(allReviews);
+                _notificationService.DetectFailedCiRuns(allCiRuns);
                 _isFirstLoad = false;
             }
 
             // Update tray tooltip
-            var failedCount = ciRuns.Count(a => a.Conclusion == "failure");
-            TrayTooltip = $"ScmMoM \u2014 {reviews.Count} review requests, {failedCount} failed CI runs";
+            var failedCount = allCiRuns.Count(a => a.Conclusion == "failure");
+            var accountCount = providers.Count;
+            TrayTooltip = $"ScmMoM \u2014 {accountCount} account(s), {allReviews.Count} reviews, {failedCount} failed CI";
         }
         catch (Exception ex)
         {
@@ -296,6 +403,9 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
     public async Task LoadCiRunAnnotationsAsync(CiRunInfo run)
     {
+        var provider = ActiveProvider;
+        if (provider == null) return;
+
         IsActionDetailVisible = true;
         IsActionDetailLoading = true;
         HasNoAnnotations = false;
@@ -304,7 +414,7 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
         try
         {
-            var annotations = await _provider.GetAnnotationsForRunAsync(run.RepoName, run.CheckSuiteId);
+            var annotations = await provider.GetAnnotationsForRunAsync(run.RepoName, run.CheckSuiteId);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 foreach (var a in annotations) Annotations.Add(a);
@@ -323,6 +433,9 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
     public async Task LoadPrCommentsAsync(PullRequestInfo pr)
     {
+        var provider = ActiveProvider;
+        if (provider == null) return;
+
         IsPrDetailVisible = true;
         IsPrDetailLoading = true;
         PrDetailHeader = $"Comments — {pr.RepoName} #{pr.Number}: {pr.Title}";
@@ -330,7 +443,7 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
         try
         {
-            var comments = await _provider.GetPrCommentsAsync(pr.RepoName, pr.Number);
+            var comments = await provider.GetPrCommentsAsync(pr.RepoName, pr.Number);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 foreach (var c in comments) PrComments.Add(c);

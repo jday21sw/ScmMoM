@@ -2,9 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ScmMoM.UI.ViewModels"
         x:Class="ScmMoM.UI.Views.LoginWindow"
-        Title="ScmMoM — Connect to GitHub"
+        Title="ScmMoM — Connect"
         Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
-        Width="460" Height="380"
+        Width="520" Height="560"
         WindowStartupLocation="CenterScreen"
         CanResize="False">
 
@@ -13,51 +13,95 @@
   </Design.DataContext>
 
   <Border Padding="32">
-    <StackPanel Spacing="16" VerticalAlignment="Center">
+    <StackPanel Spacing="14" VerticalAlignment="Center">
 
       <TextBlock Text="ScmMoM — Source Code Monitor of Monitors"
                  FontSize="22" FontWeight="Bold"
                  HorizontalAlignment="Center" />
 
-      <TextBlock Text="Connect to GitHub to monitor your repositories."
+      <TextBlock Text="Configure your SCM accounts to get started."
                  HorizontalAlignment="Center"
                  Foreground="Gray" />
 
-      <Separator Margin="0,8" />
+      <Separator Margin="0,4" />
 
-      <TextBlock Text="GitHub Username" FontWeight="SemiBold" />
-      <TextBox Text="{Binding Username}"
-               Watermark="your-github-username"
-               IsEnabled="{Binding !IsConnecting}" />
+      <!-- Configured accounts list -->
+      <TextBlock Text="Accounts" FontWeight="SemiBold" FontSize="14"
+                 IsVisible="{Binding HasAccounts}" />
+      <ItemsControl ItemsSource="{Binding AccountEntries}" IsVisible="{Binding HasAccounts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="4,6" Margin="0,2">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Text="{Binding StatusIcon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock FontWeight="SemiBold">
+                    <Run Text="{Binding ProviderIcon}" /><Run Text=" " /><Run Text="{Binding DisplayName}" />
+                  </TextBlock>
+                  <TextBlock Text="{Binding Detail}" Foreground="Gray" FontSize="11" />
+                </StackPanel>
+                <Button Grid.Column="2" Content="✕" FontSize="10" Padding="4,2"
+                        Command="{Binding RemoveCommand}" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
 
-      <TextBlock Text="Personal Access Token" FontWeight="SemiBold" />
-      <TextBox Text="{Binding Token}"
-               Watermark="ghp_..."
-               PasswordChar="●"
-               IsEnabled="{Binding !IsConnecting}" />
+      <Separator Margin="0,4" IsVisible="{Binding HasAccounts}" />
 
-      <Grid ColumnDefinitions="*,Auto">
-        <CheckBox Content="Remember token" IsChecked="{Binding RememberToken}" VerticalAlignment="Center" />
-        <Button Grid.Column="1" Content="Clear saved" Command="{Binding ClearSavedTokenCommand}"
-                IsVisible="{Binding HasSavedToken}" FontSize="11" Padding="8,4" VerticalAlignment="Center" />
+      <!-- Add new account -->
+      <TextBlock Text="Add Account" FontWeight="SemiBold" FontSize="14" />
+
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,4">
+          <TextBlock Text="Provider" FontSize="12" Margin="0,0,0,2" />
+          <ComboBox Name="ProviderCombo" SelectedIndex="{Binding SelectedProviderIndex}" HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,0,0,4">
+          <TextBlock Text="Display Name" FontSize="12" Margin="0,0,0,2" />
+          <TextBox Text="{Binding NewDisplayName}" Watermark="My GitHub" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,4"
+                    IsVisible="{Binding ShowServerUrl}">
+          <TextBlock Text="Server URL" FontSize="12" Margin="0,0,0,2" />
+          <TextBox Text="{Binding NewServerUrl}" Watermark="https://gitlab.example.com" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,6,4">
+          <TextBlock Text="Username" FontSize="12" Margin="0,0,0,2" />
+          <TextBox Text="{Binding NewUsername}" Watermark="your-username" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Grid.Column="1" Margin="6,0,0,4">
+          <TextBlock Text="Personal Access Token" FontSize="12" Margin="0,0,0,2" />
+          <TextBox Text="{Binding NewToken}" Watermark="token..." PasswordChar="●" />
+        </StackPanel>
+
+        <CheckBox Grid.Row="3" Grid.Column="0" Content="Remember token" IsChecked="{Binding NewRememberToken}" />
       </Grid>
+
+      <Button Content="+ Add Account" Command="{Binding AddAccountCommand}"
+              HorizontalAlignment="Left" Padding="12,6" />
 
       <TextBlock Text="{Binding ErrorMessage}"
                  Foreground="Red"
                  IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                  TextWrapping="Wrap" />
 
-      <Button Content="Connect"
+      <ProgressBar IsIndeterminate="True"
+                   IsVisible="{Binding IsConnecting}"
+                   Height="4" />
+
+      <Separator Margin="0,4" />
+
+      <Button Content="Connect &amp; Launch"
               Command="{Binding ConnectCommand}"
               HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Center"
               Classes="accent"
               Height="40"
               FontSize="15" />
-
-      <ProgressBar IsIndeterminate="True"
-                   IsVisible="{Binding IsConnecting}"
-                   Height="4" />
 
     </StackPanel>
   </Border>

@@ -12,16 +12,18 @@ namespace ScmMoM.UI.WebServer;
 public class ScmWebServer
 {
     private readonly DashboardViewModel _vm;
-    private readonly IScmProvider _provider;
+    private readonly AccountManager _accountManager;
     private readonly int _port;
+    private readonly string? _apiPsk;
     private WebApplication? _app;
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    public ScmWebServer(DashboardViewModel vm, IScmProvider provider, int port)
+    public ScmWebServer(DashboardViewModel vm, AccountManager accountManager, int port, string? apiPsk = null)
     {
         _vm = vm;
-        _provider = provider;
+        _accountManager = accountManager;
         _port = port;
+        _apiPsk = apiPsk;
     }
 
     public void Start()
@@ -31,6 +33,30 @@ public class ScmWebServer
         builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Warning);
 
         _app = builder.Build();
+
+        // PSK authentication middleware
+        if (!string.IsNullOrWhiteSpace(_apiPsk))
+        {
+            _app.Use(async (context, next) =>
+            {
+                // Allow static files without auth
+                if (!context.Request.Path.StartsWithSegments("/api"))
+                {
+                    await next();
+                    return;
+                }
+
+                var apiKey = context.Request.Headers["X-API-Key"].FirstOrDefault();
+                if (!string.Equals(apiKey, _apiPsk, StringComparison.Ordinal))
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("Unauthorized: Invalid or missing X-API-Key header");
+                    return;
+                }
+
+                await next();
+            });
+        }
 
         // Serve static files from wwwroot
         var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
@@ -50,7 +76,6 @@ public class ScmWebServer
         _app.MapGet("/api/status", () => Results.Json(new
         {
             username = _vm.Username,
-            organization = _vm.Organization,
             lastRefresh = _vm.LastRefreshText,
             isLoading = _vm.IsLoading,
             rateLimitRemaining = _vm.RateLimitRemaining,
@@ -59,7 +84,10 @@ public class ScmWebServer
             rateLimitColor = _vm.RateLimitColor,
             reviewCount = _vm.ReviewRequests.Count,
             prCount = _vm.OpenPullRequests.Count,
-            actionCount = _vm.CiRuns.Count
+            actionCount = _vm.CiRuns.Count,
+            notificationCount = _vm.Notifications.Count,
+            issueCount = _vm.Issues.Count,
+            accountCount = _vm.AccountItems.Count
         }));
 
         _app.MapGet("/api/reviews", () =>
@@ -71,11 +99,28 @@ public class ScmWebServer
         _app.MapGet("/api/actions", () =>
             Results.Json(_vm.CiRuns.ToList(), _jsonOptions));
 
+        _app.MapGet("/api/notifications", () =>
+            Results.Json(_vm.Notifications.ToList(), _jsonOptions));
+
+        _app.MapGet("/api/issues", () =>
+            Results.Json(_vm.Issues.ToList(), _jsonOptions));
+
+        _app.MapGet("/api/accounts", () =>
+            Results.Json(_vm.AccountItems.Select(a => new
+            {
+                a.AccountId,
+                a.DisplayName,
+                a.ProviderType,
+                a.StatusDot
+            }).ToList(), _jsonOptions));
+
         _app.MapGet("/api/actions/{repo}/{checkSuiteId:long}/annotations", async (string repo, long checkSuiteId) =>
         {
             try
             {
-                var annotations = await _provider.GetAnnotationsForRunAsync(repo, checkSuiteId);
+                var provider = _accountManager.ActiveProvider;
+                if (provider == null) return Results.Json(Array.Empty<object>(), _jsonOptions);
+                var annotations = await provider.GetAnnotationsForRunAsync(repo, checkSuiteId);
                 return Results.Json(annotations, _jsonOptions);
             }
             catch
@@ -88,12 +133,27 @@ public class ScmWebServer
         {
             try
             {
-                var comments = await _provider.GetPrCommentsAsync(repo, number);
+                var provider = _accountManager.ActiveProvider;
+                if (provider == null) return Results.Json(Array.Empty<object>(), _jsonOptions);
+                var comments = await provider.GetPrCommentsAsync(repo, number);
                 return Results.Json(comments, _jsonOptions);
             }
             catch
             {
                 return Results.Json(Array.Empty<object>(), _jsonOptions);
+            }
+        });
+
+        _app.MapPost("/api/refresh", () =>
+        {
+            try
+            {
+                _vm.RefreshCommand.Execute().Subscribe();
+                return Results.Ok(new { message = "Refresh triggered" });
+            }
+            catch
+            {
+                return Results.StatusCode(500);
             }
         });
 

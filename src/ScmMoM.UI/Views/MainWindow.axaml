@@ -37,10 +37,7 @@
         <StackPanel Orientation="Horizontal" Spacing="16">
           <TextBlock Text="ScmMoM" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
           <TextBlock VerticalAlignment="Center">
-            <Run Text="User: " Foreground="Gray" /><Run Text="{Binding Username}" FontWeight="SemiBold" />
-          </TextBlock>
-          <TextBlock VerticalAlignment="Center">
-            <Run Text="Org: " Foreground="Gray" /><Run Text="{Binding Organization}" FontWeight="SemiBold" />
+            <Run Text="Accounts: " Foreground="Gray" /><Run Text="{Binding AccountItems.Count}" FontWeight="SemiBold" />
           </TextBlock>
           <TextBlock VerticalAlignment="Center">
             <Run Text="Last refresh: " Foreground="Gray" /><Run Text="{Binding LastRefreshText}" />
@@ -89,8 +86,35 @@
     <!-- Loading Bar -->
     <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" IsVisible="{Binding IsLoading}" Height="3" />
 
-    <!-- Main Content: Tabs -->
-    <TabControl Margin="8">
+    <!-- Main Content: Sidebar + Tabs -->
+    <Grid ColumnDefinitions="180,*">
+
+      <!-- Sidebar: Account List -->
+      <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+              BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0"
+              Padding="8">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Accounts" FontWeight="SemiBold" FontSize="13" Margin="4,4,4,8" />
+          <ItemsControl ItemsSource="{Binding AccountItems}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Padding="6,4" Margin="0,1" CornerRadius="4"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding StatusDot}" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ProviderIcon}" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+      </Border>
+
+      <!-- Right: Tabs -->
+      <TabControl Grid.Column="1" Margin="8">
 
       <!-- Review Requests Tab -->
       <TabItem>
@@ -324,7 +348,85 @@
         </Grid>
       </TabItem>
 
+      <!-- Notifications Tab -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="🔔" />
+            <TextBlock Text="Notifications" />
+            <Border Background="#0078D4" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Notifications.Count}" Foreground="White" FontSize="11" />
+            </Border>
+          </StackPanel>
+        </TabItem.Header>
+        <DataGrid ItemsSource="{Binding Notifications}"
+                  Tag="{Binding OpenUrlCommand}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
+            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="100" />
+            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="120" />
+            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="140" />
+            <DataGridTemplateColumn Header="Link" Width="70">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Open ↗"
+                          Command="{Binding $parent[DataGrid].Tag}"
+                          CommandParameter="{Binding Url}"
+                          FontSize="11" Padding="4,2" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+
+      <!-- Issues Tab -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="📌" />
+            <TextBlock Text="Issues" />
+            <Border Background="#0078D4" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Issues.Count}" Foreground="White" FontSize="11" />
+            </Border>
+          </StackPanel>
+        </TabItem.Header>
+        <DataGrid ItemsSource="{Binding Issues}"
+                  Tag="{Binding OpenUrlCommand}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
+            <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="60" />
+            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+            <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="120" />
+            <DataGridTextColumn Header="Assignee" Binding="{Binding Assignee}" Width="120" />
+            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="140" />
+            <DataGridTemplateColumn Header="Link" Width="70">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Open ↗"
+                          Command="{Binding $parent[DataGrid].Tag}"
+                          CommandParameter="{Binding Url}"
+                          FontSize="11" Padding="4,2" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+
     </TabControl>
+    </Grid>
 
   </DockPanel>
 
