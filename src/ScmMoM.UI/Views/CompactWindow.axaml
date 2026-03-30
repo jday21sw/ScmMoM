@@ -1,0 +1,66 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ScmMoM.UI.ViewModels"
+        x:Class="ScmMoM.UI.Views.CompactWindow"
+        Title="ScmMoM"
+        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
+        Width="320" Height="80"
+        MinWidth="320" MinHeight="80"
+        MaxWidth="320" MaxHeight="80"
+        CanResize="False"
+        SystemDecorations="None"
+        Topmost="True"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur"
+        WindowStartupLocation="CenterScreen">
+
+  <Design.DataContext>
+    <vm:DashboardViewModel />
+  </Design.DataContext>
+
+  <Border CornerRadius="10"
+          Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+          BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+          BorderThickness="1"
+          Padding="14,10"
+          Name="DragBorder">
+    <Grid ColumnDefinitions="*,Auto">
+      <!-- Count badges -->
+      <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+        <!-- Review Requests -->
+        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="Review Requests">
+          <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center" />
+          <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding ReviewRequests.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
+          </Border>
+        </StackPanel>
+
+        <!-- Open Pull Requests -->
+        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="Open Pull Requests">
+          <TextBlock Text="🔀" FontSize="16" VerticalAlignment="Center" />
+          <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding OpenPullRequests.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
+          </Border>
+        </StackPanel>
+
+        <!-- CI Runs -->
+        <StackPanel Orientation="Horizontal" Spacing="4" ToolTip.Tip="CI Runs">
+          <TextBlock Text="⚡" FontSize="16" VerticalAlignment="Center" />
+          <Border Background="#0078D4" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding CiRuns.Count}" Foreground="White" FontSize="13" FontWeight="SemiBold" />
+          </Border>
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Rate limit dot + expand button -->
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Ellipse Width="10" Height="10" ToolTip.Tip="API Rate Limit"
+                 Fill="{Binding RateLimitColor}" />
+        <Button Content="⬜" FontSize="10" Padding="4,2"
+                ToolTip.Tip="Open Full Dashboard"
+                Name="ExpandButton" />
+      </StackPanel>
+    </Grid>
+  </Border>
+
+</Window>

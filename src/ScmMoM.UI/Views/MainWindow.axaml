@@ -1,0 +1,331 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ScmMoM.UI.ViewModels"
+        xmlns:models="using:ScmMoM.Core.Models"
+        x:Class="ScmMoM.UI.Views.MainWindow"
+        Title="ScmMoM — Source Code Monitor of Monitors"
+        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
+        Width="1100" Height="750"
+        MinWidth="800" MinHeight="500"
+        WindowStartupLocation="CenterScreen">
+
+  <Design.DataContext>
+    <vm:DashboardViewModel />
+  </Design.DataContext>
+
+  <Window.Styles>
+    <!-- Flashing animation for in-progress runs -->
+    <Style Selector="TextBlock.flashing">
+      <Style.Animations>
+        <Animation Duration="0:0:1" IterationCount="INFINITE" PlaybackDirection="Alternate">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="1.0" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="0.3" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </Window.Styles>
+
+  <DockPanel>
+
+    <!-- Header Bar -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="16,10">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <TextBlock Text="ScmMoM" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center">
+            <Run Text="User: " Foreground="Gray" /><Run Text="{Binding Username}" FontWeight="SemiBold" />
+          </TextBlock>
+          <TextBlock VerticalAlignment="Center">
+            <Run Text="Org: " Foreground="Gray" /><Run Text="{Binding Organization}" FontWeight="SemiBold" />
+          </TextBlock>
+          <TextBlock VerticalAlignment="Center">
+            <Run Text="Last refresh: " Foreground="Gray" /><Run Text="{Binding LastRefreshText}" />
+          </TextBlock>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Content="⟳ Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+          <Button Content="▪ Compact" Name="CompactButton" VerticalAlignment="Center" />
+          <Button Content="⚙ Settings" Name="SettingsButton" VerticalAlignment="Center" />
+          <Button Content="✕ Quit" Name="QuitButton" VerticalAlignment="Center" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Status Bar (Rate Limit) -->
+    <Border DockPanel.Dock="Bottom" Padding="12,6" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <TextBlock VerticalAlignment="Center">
+            <Run Text="API Rate Limit: " Foreground="Gray" />
+            <Run Text="{Binding RateLimitRemaining}" Foreground="{Binding RateLimitColor}" FontWeight="SemiBold" />
+            <Run Text=" / " Foreground="Gray" />
+            <Run Text="{Binding RateLimitTotal}" Foreground="Gray" />
+          </TextBlock>
+          <TextBlock Text="{Binding RateLimitResetText}" Foreground="Gray" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" VerticalAlignment="Center">
+          <Run Text="Refresh every " Foreground="Gray" /><Run Text="{Binding RefreshIntervalSeconds}" Foreground="Gray" /><Run Text="s" Foreground="Gray" />
+        </TextBlock>
+      </Grid>
+    </Border>
+
+    <!-- Error Banner -->
+    <Border DockPanel.Dock="Top" Padding="12,6"
+            Background="{DynamicResource ScmMoMErrorBackground}"
+            IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource ScmMoMErrorForeground}" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Token Scope Warning Banner -->
+    <Border DockPanel.Dock="Top" Padding="12,6" Background="#FFF3CD" CornerRadius="0"
+            IsVisible="{Binding ScopeWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Text="{Binding ScopeWarning}" Foreground="#856404" TextWrapping="Wrap" FontSize="12" />
+    </Border>
+
+    <!-- Loading Bar -->
+    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" IsVisible="{Binding IsLoading}" Height="3" />
+
+    <!-- Main Content: Tabs -->
+    <TabControl Margin="8">
+
+      <!-- Review Requests Tab -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="📋" />
+            <TextBlock Text="Review Requests" />
+            <Border Background="#0078D4" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding ReviewRequests.Count}" Foreground="White" FontSize="11" />
+            </Border>
+          </StackPanel>
+        </TabItem.Header>
+        <DataGrid ItemsSource="{Binding ReviewRequests}"
+                  Tag="{Binding OpenUrlCommand}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
+            <DataGridTextColumn Header="#" Binding="{Binding PullRequestNumber}" Width="60" />
+            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+            <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="120" />
+            <DataGridTextColumn Header="Created" Binding="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="140" />
+            <DataGridTemplateColumn Header="Link" Width="70">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Open ↗"
+                          Command="{Binding $parent[DataGrid].Tag}"
+                          CommandParameter="{Binding Url}"
+                          FontSize="11" Padding="4,2" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </TabItem>
+
+      <!-- Open Pull Requests Tab -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="🔀" />
+            <TextBlock Text="Open Pull Requests" />
+            <Border Background="#0078D4" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding OpenPullRequests.Count}" Foreground="White" FontSize="11" />
+            </Border>
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="Auto,*" Tag="{Binding OpenUrlCommand}">
+          <DataGrid ItemsSource="{Binding OpenPullRequests}"
+                    Tag="{Binding OpenUrlCommand}"
+                    Name="PrDataGrid"
+                    IsReadOnly="True"
+                    AutoGenerateColumns="False"
+                    GridLinesVisibility="Horizontal"
+                    CanUserResizeColumns="True"
+                    CanUserSortColumns="True"
+                    MaxHeight="300"
+                    Grid.Row="0">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
+              <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="60" />
+              <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
+              <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="120" />
+              <DataGridTemplateColumn Header="Status" Width="90">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Center">
+                      <TextBlock Text="{Binding State}" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="140" />
+              <DataGridTemplateColumn Header="Link" Width="70">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Button Content="Open ↗"
+                            Command="{Binding $parent[DataGrid].Tag}"
+                            CommandParameter="{Binding Url}"
+                            FontSize="11" Padding="4,2" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <!-- PR Comments Detail Panel -->
+          <Border Grid.Row="1"
+                  Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+                  BorderBrush="Gray" BorderThickness="0,1,0,0"
+                  Padding="12,8"
+                  IsVisible="{Binding IsPrDetailVisible}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,6"
+                         Text="{Binding PrDetailHeader}" />
+              <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True"
+                           IsVisible="{Binding IsPrDetailLoading}" Height="2" Margin="0,0,0,4" />
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding PrComments}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="models:PrCommentInfo">
+                      <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="4,6" Margin="0,0,0,2">
+                        <DockPanel>
+                          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Author}" FontWeight="SemiBold" FontSize="12" />
+                            <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                       Foreground="Gray" FontSize="11" />
+                            <Button Content="🔗" FontSize="10" Padding="2,0"
+                                    Command="{Binding $parent[DockPanel].Tag}"
+                                    CommandParameter="{Binding HtmlUrl}" />
+                          </StackPanel>
+                          <TextBlock Text="{Binding Body}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0" />
+                        </DockPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- CI Runs Tab -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="⚡" />
+            <TextBlock Text="CI Runs" />
+            <Border Background="#0078D4" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+              <TextBlock Text="{Binding CiRuns.Count}" Foreground="White" FontSize="11" />
+            </Border>
+          </StackPanel>
+        </TabItem.Header>
+        <Grid RowDefinitions="Auto,*">
+          <DataGrid ItemsSource="{Binding CiRuns}"
+                    Tag="{Binding OpenUrlCommand}"
+                    Name="ActionsDataGrid"
+                    IsReadOnly="True"
+                    AutoGenerateColumns="False"
+                    GridLinesVisibility="Horizontal"
+                    CanUserResizeColumns="True"
+                    CanUserSortColumns="True"
+                    MaxHeight="300"
+                    Grid.Row="0">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
+              <DataGridTextColumn Header="Workflow" Binding="{Binding WorkflowName}" Width="*" />
+              <DataGridTextColumn Header="#" Binding="{Binding RunNumber}" Width="70" />
+              <DataGridTextColumn Header="Actor" Binding="{Binding Actor}" Width="120" />
+              <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+              <DataGridTemplateColumn Header="Conclusion" Width="110">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate DataType="models:CiRunInfo">
+                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Center">
+                      <Panel>
+                        <!-- Static text for completed runs -->
+                        <TextBlock Text="{Binding ConclusionDisplay}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{Binding ConclusionColor}"
+                                   IsVisible="{Binding !IsRunning}" />
+                        <!-- Flashing text for running -->
+                        <TextBlock Text="{Binding ConclusionDisplay}" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#E36209"
+                                   Classes="flashing"
+                                   IsVisible="{Binding IsRunning}" />
+                      </Panel>
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Branch" Binding="{Binding Branch}" Width="120" />
+              <DataGridTextColumn Header="Triggered" Binding="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="140" />
+              <DataGridTemplateColumn Header="Link" Width="70">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Button Content="Open ↗"
+                            Command="{Binding $parent[DataGrid].Tag}"
+                            CommandParameter="{Binding Url}"
+                            FontSize="11" Padding="4,2" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <!-- Annotations Detail Panel -->
+          <Border Grid.Row="1"
+                  Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+                  BorderBrush="Gray" BorderThickness="0,1,0,0"
+                  Padding="12,8"
+                  IsVisible="{Binding IsActionDetailVisible}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,6"
+                         Text="{Binding ActionDetailHeader}" />
+              <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True"
+                           IsVisible="{Binding IsActionDetailLoading}" Height="2" Margin="0,0,0,4" />
+              <TextBlock DockPanel.Dock="Top"
+                         Text="No annotations found."
+                         IsVisible="{Binding HasNoAnnotations}"
+                         Foreground="Gray" FontStyle="Italic" Margin="0,0,0,4" />
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Annotations}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="models:AnnotationInfo">
+                      <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="4,6" Margin="0,0,0,2">
+                        <StackPanel Spacing="2">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Level}" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="{Binding Level, Converter={x:Static StringConverters.IsNotNullOrEmpty}, ConverterParameter=level}" />
+                            <TextBlock Text="{Binding CheckRunName}" Foreground="Gray" FontSize="11" />
+                            <TextBlock FontSize="11" Foreground="Gray">
+                              <Run Text="{Binding Path}" /><Run Text=":" /><Run Text="{Binding StartLine}" />
+                            </TextBlock>
+                          </StackPanel>
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                     IsVisible="{Binding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                          <TextBlock TextWrapping="Wrap" FontSize="12"
+                                     Tag="{Binding Message}"
+                                     Loaded="OnAnnotationMessageLoaded" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+        </Grid>
+      </TabItem>
+
+    </TabControl>
+
+  </DockPanel>
+
+</Window>

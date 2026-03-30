@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ScmMoM.UI.ViewModels"
+        x:Class="ScmMoM.UI.Views.LoginWindow"
+        Title="ScmMoM — Connect to GitHub"
+        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+  <Design.DataContext>
+    <vm:LoginViewModel />
+  </Design.DataContext>
+
+  <Border Padding="32">
+    <StackPanel Spacing="16" VerticalAlignment="Center">
+
+      <TextBlock Text="ScmMoM — Source Code Monitor of Monitors"
+                 FontSize="22" FontWeight="Bold"
+                 HorizontalAlignment="Center" />
+
+      <TextBlock Text="Connect to GitHub to monitor your repositories."
+                 HorizontalAlignment="Center"
+                 Foreground="Gray" />
+
+      <Separator Margin="0,8" />
+
+      <TextBlock Text="GitHub Username" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Username}"
+               Watermark="your-github-username"
+               IsEnabled="{Binding !IsConnecting}" />
+
+      <TextBlock Text="Personal Access Token" FontWeight="SemiBold" />
+      <TextBox Text="{Binding Token}"
+               Watermark="ghp_..."
+               PasswordChar="●"
+               IsEnabled="{Binding !IsConnecting}" />
+
+      <Grid ColumnDefinitions="*,Auto">
+        <CheckBox Content="Remember token" IsChecked="{Binding RememberToken}" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Clear saved" Command="{Binding ClearSavedTokenCommand}"
+                IsVisible="{Binding HasSavedToken}" FontSize="11" Padding="8,4" VerticalAlignment="Center" />
+      </Grid>
+
+      <TextBlock Text="{Binding ErrorMessage}"
+                 Foreground="Red"
+                 IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                 TextWrapping="Wrap" />
+
+      <Button Content="Connect"
+              Command="{Binding ConnectCommand}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Center"
+              Classes="accent"
+              Height="40"
+              FontSize="15" />
+
+      <ProgressBar IsIndeterminate="True"
+                   IsVisible="{Binding IsConnecting}"
+                   Height="4" />
+
+    </StackPanel>
+  </Border>
+
+</Window>
