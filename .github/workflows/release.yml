@@ -14,16 +14,16 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            artifact: BPM-win-x64
+            artifact: ScmMoM-win-x64
           - os: ubuntu-latest
             rid: linux-x64
-            artifact: BPM-linux-x64
+            artifact: ScmMoM-linux-x64
           - os: macos-latest
             rid: osx-arm64
-            artifact: BPM-osx-arm64
-          - os: macos-13
+            artifact: ScmMoM-osx-arm64
+          - os: macos-latest
             rid: osx-x64
-            artifact: BPM-osx-x64
+            artifact: ScmMoM-osx-x64
 
     runs-on: ${{ matrix.os }}
 
@@ -36,7 +36,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Publish
-        run: dotnet publish src/BPM.UI -c Release -r ${{ matrix.rid }} --self-contained -o publish/${{ matrix.artifact }}
+        run: dotnet publish src/ScmMoM.UI -c Release -r ${{ matrix.rid }} --self-contained -o publish/${{ matrix.artifact }}
 
       - name: Zip (Windows)
         if: runner.os == 'Windows'

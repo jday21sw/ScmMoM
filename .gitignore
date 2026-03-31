@@ -38,3 +38,5 @@ bld/
 
 ## Local history
 .history/
+.lh/
+PLAN.md
