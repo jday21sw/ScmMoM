@@ -1,81 +1,90 @@
-# ScmMoM — Source Code Monitor of Monitors
+# ScmMoM
 
-A cross-platform .NET 9 desktop application that monitors your repositories across **GitHub**, **GitLab**, and **Gitea** — all from a single dashboard. Built with [Avalonia UI](https://avaloniaui.net/) — runs on **Windows**, **macOS**, and **Linux**.
+ScmMoM, short for Source Code Monitor of Monitors, is a .NET 9 desktop monitor for teams and individual contributors who work across multiple source control platforms and multiple accounts. It combines GitHub, GitLab, and Gitea activity into one Avalonia desktop app and an optional browser-accessible dashboard served from the same process.
+
+Release `0.1` establishes the first complete multi-SCM, multi-account version of the app.
+
+## Release 0.1 Highlights
+
+- Unified monitoring for GitHub, GitLab, and Gitea through a shared provider abstraction.
+- Multi-account login, storage, and dashboard aggregation with per-account filtering.
+- Review requests, pull requests or merge requests, CI runs, notifications, and assigned issues in one place.
+- Inline token entry for accounts that exist in config but do not yet have saved credentials.
+- Secure optional token persistence through Git Credential Manager backed OS storage.
+- Permission auditing for tokens with an in-app warning banner when scopes appear broader than necessary.
+- Embedded web dashboard and JSON API protected with an optional pre-shared key.
+- Compact always-on-top window, tray behavior, rate-limit display, and theme switching.
+- Updated branding, application icon assets, login artwork, and Linux desktop integration assets.
 
 ## Features
 
-- **Multi-SCM Support** — Monitor GitHub, GitLab, and Gitea from one app
-- **Multi-Account** — Connect multiple accounts simultaneously, each with its own provider/server
-- **Review Requests** — See all PRs/MRs where you're a requested reviewer
-- **Open Pull Requests / Merge Requests** — Track your authored PRs/MRs with status, click to view comments
-- **CI Runs** — Monitor GitHub Actions, GitLab Pipelines, and Gitea Actions with status badges
-- **Notifications** — Aggregate notifications/todos from all connected SCM platforms
-- **Issues** — View assigned issues across all accounts
-- **Sidebar Account Switcher** — Visual sidebar showing all accounts with health status dots
-- **Clickable Links** — Open any PR/MR or CI run directly in your browser
-- **Auto-Refresh** — Configurable polling interval (default: 5 minutes)
-- **System Tray** — Minimizes to tray; right-click for quick actions
-- **Desktop Notifications** — Alerts for new review requests and failed CI runs
-- **Rate Limit Display** — Real-time API rate limit counter in the status bar
-- **Compact Mode** — Small always-on-top overlay with count badges (📋🔀⚡🔔📌)
-- **Light/Dark/System Theme** — Three-way theme toggle in Settings
-- **Web Dashboard** — Embedded HTTP server with browser-based dashboard, PSK-authenticated API
-- **Secure Token Storage** — Optional OS keyring storage (Windows Credential Manager, macOS Keychain, Linux libsecret)
-- **Token Audit** — Warns about excessive token permissions on classic PATs
+- Multi-SCM support for GitHub, GitLab, and Gitea.
+- Multiple named accounts active at the same time.
+- Per-account repository whitelists so the dashboard only surfaces configured repositories.
+- Review request monitoring for PR and MR workflows.
+- Open pull request and merge request tracking with recent comment drill-down.
+- Recent CI runs with provider-specific status and annotation details.
+- Notifications and assigned issues aggregated across connected accounts.
+- Sidebar account switcher with provider icons and health status dots.
+- Web dashboard with account selector and tabbed views for reviews, PRs, CI, notifications, and issues.
+- Optional desktop notifications for new review requests and failing CI.
+- Configurable refresh interval, theme mode, and web server settings.
 
 ## Quick Start
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- A Personal Access Token for your SCM platform(s)
+- .NET 9 SDK
+- A personal access token for each provider you want to connect
 
-### Build & Run
+### Build and Run
 
 ```bash
 git clone https://github.com/jday21sw/ScmMoM.git
 cd ScmMoM
-
 dotnet build ScmMoM.sln
 dotnet run --project src/ScmMoM.UI
 ```
 
-On first launch, add your accounts via the login window — select the provider type (GitHub/GitLab/Gitea), enter your username and token, then click **Connect & Launch**.
+On first launch:
 
-## Token Setup
+1. Add an account in the login window.
+2. Choose GitHub, GitLab, or Gitea.
+3. Enter display name, username, organization or group, and the repository list to monitor.
+4. Enter a token and optionally enable Remember token.
+5. Select Connect & Launch.
+
+## Provider Token Guidance
 
 ### GitHub
 
-**Required scopes (classic PAT):** `repo`, `workflow`, `read:org`
+Classic personal access tokens should include `repo`, `workflow`, and `read:org`.
 
-```bash
-gh auth login --scopes repo,workflow,read:org
-gh auth token
-```
-
-Or create a **fine-grained PAT** with `Pull requests: Read`, `Actions: Read`, `Metadata: Read`.
+Fine-grained tokens should allow read access for pull requests, actions, and repository metadata.
 
 ### GitLab
 
-Create a Personal Access Token at `Settings → Access Tokens` with the `read_api` scope. For self-hosted GitLab, enter your server URL when adding the account.
+Use a personal access token with at least `read_api`. Self-hosted GitLab accounts should provide the server URL when the account is created.
 
 ### Gitea
 
-Create a token at `Settings → Applications → Manage Access Tokens`. For self-hosted Gitea, enter your server URL when adding the account.
+Create a token through the applications or access tokens settings for the server. Self-hosted Gitea accounts must provide the server URL.
 
-## Configuration
+## Configuration Model
 
-Use the in-app **Settings** dialog to configure per-account repositories and global settings. Settings are stored in `appsettings.json`:
+Settings are stored in `appsettings.json` alongside the built application. The current configuration shape is account-based:
 
 ```json
 {
   "Accounts": [
     {
-      "Id": "abc123",
-      "ProviderType": "GitHub",
+      "Id": "abc12345",
+      "ProviderType": 0,
       "DisplayName": "Work GitHub",
+      "ServerUrl": "",
+      "Username": "octocat",
       "Organization": "my-org",
-      "Repositories": ["repo1", "repo2"],
+      "Repositories": ["repo-a", "repo-b"],
       "RememberToken": true
     }
   ],
@@ -84,81 +93,61 @@ Use the in-app **Settings** dialog to configure per-account repositories and glo
   "ThemeMode": "System",
   "WebServerEnabled": false,
   "WebServerPort": 5123,
-  "ApiPsk": null
+  "ApiPsk": ""
 }
 ```
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `Accounts` | List of SCM account configurations | `[]` |
-| `RefreshIntervalSeconds` | Auto-refresh interval (min: 30) | `300` |
-| `NotificationsEnabled` | Desktop notification alerts | `true` |
-| `ThemeMode` | `System`, `Light`, or `Dark` | `System` |
-| `WebServerEnabled` | Enable embedded web dashboard | `false` |
-| `WebServerPort` | Port for web dashboard | `5123` |
-| `ApiPsk` | Pre-shared key for API authentication | `null` |
+Legacy single-account configuration is migrated automatically into the `Accounts` list on load.
 
-## Web Dashboard & Remote API
+## Desktop Workflow
 
-Enable in **Settings → Web Dashboard** to serve a browser-accessible dashboard at `http://localhost:5123`.
+- The login window handles account creation, inline token entry, and startup connection.
+- The main dashboard aggregates all connected providers and supports account-scoped filtering from the sidebar.
+- The settings window edits account metadata, repository lists, refresh behavior, theme mode, and web server security.
+- Closing the main window hides the app to tray instead of exiting; explicit quit remains available from the header and tray menu.
 
-### API Endpoints
+## Web Dashboard and API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/status` | Dashboard status summary |
-| GET | `/api/reviews` | Review requests |
-| GET | `/api/pull-requests` | Open pull requests |
-| GET | `/api/actions` | CI runs |
-| GET | `/api/notifications` | Notifications |
-| GET | `/api/issues` | Assigned issues |
-| GET | `/api/accounts` | Connected accounts |
-| POST | `/api/refresh` | Trigger a data refresh |
+When enabled, the embedded server publishes static files and JSON endpoints from the desktop process on `http://localhost:<port>`.
 
-### PSK Authentication
+Available endpoints:
 
-Generate a Pre-Shared Key in **Settings → API Security**. Include it as `X-API-Key` header:
+- `GET /api/status`
+- `GET /api/reviews`
+- `GET /api/pull-requests`
+- `GET /api/actions`
+- `GET /api/notifications`
+- `GET /api/issues`
+- `GET /api/accounts`
+- `GET /api/actions/{repo}/{checkSuiteId}/annotations`
+- `GET /api/pull-requests/{repo}/{number}/comments`
+- `POST /api/refresh`
 
-```bash
-curl -H "X-API-Key: YOUR_PSK" http://localhost:5123/api/status
-```
-
-## Compact Mode
-
-Click **▪ Compact** to switch to a minimal always-on-top overlay showing all count badges. Click **Expand** to return to full dashboard.
-
-## System Tray
-
-- **Close the window** → app minimizes to tray
-- **Right-click tray icon** → Open Dashboard, Refresh Now, Quit
-- **Click tray icon** → restore dashboard
+If an API PSK is configured, callers must send `X-API-Key`.
 
 ## Architecture
 
-- **ScmMoM.Core** — Class library: models, services, SCM providers (no UI dependency)
-- **ScmMoM.UI** — Avalonia desktop app + embedded Kestrel web server
-- **IScmProvider** — Unified interface for GitHub, GitLab, Gitea
-- **AccountManager** — Multi-provider registry and factory
-- **MVVM** with ReactiveUI
-- **Octokit.NET** for GitHub, **NGitLab** for GitLab, **HttpClient** for Gitea
-- **ASP.NET Core** (embedded) for web dashboard
-- **DI** via `Microsoft.Extensions.DependencyInjection`
+High-level summary:
 
-## Cross-Platform Publishing
+- `ScmMoM.Core` contains models, configuration services, token storage, provider implementations, and the account manager.
+- `ScmMoM.UI` contains the Avalonia application shell, windows, view models, and the embedded ASP.NET Core web server.
+- ReactiveUI drives the desktop MVVM layer.
+- Provider libraries are Octokit for GitHub, NGitLab plus REST calls for GitLab, and HttpClient-based REST integration for Gitea.
+
+For a fuller design walkthrough, see `ARCHITECTURE.md`.
+
+## Publishing
 
 ```bash
-# Windows
 dotnet publish src/ScmMoM.UI -c Release -r win-x64 --self-contained -o publish/win-x64
-
-# macOS (Apple Silicon)
 dotnet publish src/ScmMoM.UI -c Release -r osx-arm64 --self-contained -o publish/osx-arm64
-
-# macOS (Intel)
 dotnet publish src/ScmMoM.UI -c Release -r osx-x64 --self-contained -o publish/osx-x64
-
-# Linux
 dotnet publish src/ScmMoM.UI -c Release -r linux-x64 --self-contained -o publish/linux-x64
 ```
+
+## Roadmap
+
+Planned follow-on work is tracked in `TODO.md`.
 
 ## License
 

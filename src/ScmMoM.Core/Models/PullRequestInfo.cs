@@ -2,6 +2,8 @@ namespace ScmMoM.Core.Models;
 
 public class PullRequestInfo
 {
+    public string AccountId { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
     public string RepoName { get; set; } = string.Empty;
     public int Number { get; set; }
     public string Title { get; set; } = string.Empty;

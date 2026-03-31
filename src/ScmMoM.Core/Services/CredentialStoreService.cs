@@ -5,7 +5,7 @@ namespace ScmMoM.Core.Services;
 public class CredentialStoreService : ITokenStore
 {
     private const string Namespace = "ScmMoM";
-    private const string ServicePrefix = "scmmom://";
+    private const string ServicePrefix = "scmmom://accounts/";
     private readonly GCM.ICredentialStore _store;
 
     public CredentialStoreService()
@@ -22,7 +22,10 @@ public class CredentialStoreService : ITokenStore
     {
         try
         {
+            // Try new key format first, fall back to legacy format
             var credential = _store.Get(ServicePrefix + serviceKey, null);
+            if (credential == null)
+                credential = _store.Get("scmmom://" + serviceKey, null);
             if (credential != null)
             {
                 return (credential.Account, credential.Password);
@@ -44,6 +47,14 @@ public class CredentialStoreService : ITokenStore
         catch
         {
             // Credential not found or store unavailable
+        }
+        try
+        {
+            _store.Remove("scmmom://" + serviceKey, null);
+        }
+        catch
+        {
+            // Legacy key not found
         }
     }
 }

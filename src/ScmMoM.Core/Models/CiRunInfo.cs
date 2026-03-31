@@ -2,6 +2,8 @@ namespace ScmMoM.Core.Models;
 
 public class CiRunInfo
 {
+    public string AccountId { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
     public string RepoName { get; set; } = string.Empty;
     public string WorkflowName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;

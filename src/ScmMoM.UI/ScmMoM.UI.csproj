@@ -32,11 +32,12 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <ApplicationIcon>Assets\bpm-icon.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\scmmom-icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\bpm-icon.ico" />
+    <AvaloniaResource Include="Assets\scmmom-icon.ico" />
+    <AvaloniaResource Include="Assets\scmmom-icon.png" />
   </ItemGroup>
 
 </Project>

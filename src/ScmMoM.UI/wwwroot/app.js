@@ -3,6 +3,7 @@
 
   const POLL_INTERVAL = 10000;
   let lastRefresh = '';
+  let selectedAccountId = '';
 
   // Tab switching
   document.querySelectorAll('.tab').forEach(btn => {
@@ -12,6 +13,13 @@
       btn.classList.add('active');
       document.getElementById(btn.dataset.tab).classList.add('active');
     });
+  });
+
+  // Account selector
+  document.getElementById('accountSelector').addEventListener('change', (e) => {
+    selectedAccountId = e.target.value;
+    lastRefresh = ''; // force full refresh
+    refreshStatus();
   });
 
   function fmt(dateStr) {
@@ -37,6 +45,27 @@
     return res.json();
   }
 
+  function filterByAccount(data) {
+    if (!selectedAccountId || !data) return data;
+    return data.filter(item => item.accountId === selectedAccountId);
+  }
+
+  async function loadAccounts() {
+    const data = await fetchJson('/api/accounts');
+    if (!data) return;
+    const select = document.getElementById('accountSelector');
+    const current = select.value;
+    // Keep the "All" option, rebuild the rest
+    select.innerHTML = '<option value="">All Accounts</option>';
+    data.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.accountId;
+      opt.textContent = `${a.displayName} (${a.providerType})`;
+      select.appendChild(opt);
+    });
+    select.value = current;
+  }
+
   async function refreshStatus() {
     const s = await fetchJson('/api/status');
     if (!s) return;
@@ -47,10 +76,6 @@
     document.getElementById('rateLimitRemaining').textContent = s.rateLimitRemaining;
     document.getElementById('rateLimitTotal').textContent = s.rateLimitTotal;
     document.getElementById('rateLimitReset').textContent = s.rateLimitResetText;
-    document.getElementById('reviewBadge').textContent = s.reviewCount;
-    document.getElementById('prBadge').textContent = s.prCount;
-    document.getElementById('actionBadge').textContent = s.actionCount;
-    document.title = `ScmMoM — ${s.reviewCount} reviews, ${s.prCount} PRs, ${s.actionCount} actions`;
 
     const dot = document.getElementById('rateDot');
     const colorMap = { Green: '#22863a', Orange: '#e36209', Red: '#cb2431' };
@@ -58,12 +83,28 @@
 
     if (s.lastRefresh !== lastRefresh) {
       lastRefresh = s.lastRefresh;
-      await Promise.all([refreshReviews(), refreshPrs(), refreshActions()]);
+      await Promise.all([
+        refreshReviews(),
+        refreshPrs(),
+        refreshActions(),
+        refreshNotifications(),
+        refreshIssues(),
+        loadAccounts()
+      ]);
     }
+
+    // Update badges after filtering
+    document.getElementById('reviewBadge').textContent = document.getElementById('reviewsBody').children.length;
+    document.getElementById('prBadge').textContent = document.getElementById('prsBody').children.length;
+    document.getElementById('actionBadge').textContent = document.getElementById('actionsBody').children.length;
+    document.getElementById('notifBadge').textContent = document.getElementById('notificationsBody').children.length;
+    document.getElementById('issueBadge').textContent = document.getElementById('issuesBody').children.length;
+    document.title = `ScmMoM — ${s.reviewCount} reviews, ${s.prCount} PRs, ${s.actionCount} actions`;
   }
 
   async function refreshReviews() {
-    const data = await fetchJson('/api/reviews');
+    const raw = await fetchJson('/api/reviews');
+    const data = filterByAccount(raw);
     if (!data) return;
     const body = document.getElementById('reviewsBody');
     body.innerHTML = data.map(r => `<tr>
@@ -77,7 +118,8 @@
   }
 
   async function refreshPrs() {
-    const data = await fetchJson('/api/pull-requests');
+    const raw = await fetchJson('/api/pull-requests');
+    const data = filterByAccount(raw);
     if (!data) return;
     const body = document.getElementById('prsBody');
     body.innerHTML = data.map(pr => `<tr data-repo="${escHtml(pr.repoName)}" data-number="${pr.number}">
@@ -123,7 +165,8 @@
   }
 
   async function refreshActions() {
-    const data = await fetchJson('/api/actions');
+    const raw = await fetchJson('/api/actions');
+    const data = filterByAccount(raw);
     if (!data) return;
     const body = document.getElementById('actionsBody');
     body.innerHTML = data.map(a => {
@@ -180,6 +223,38 @@
       ${a.title ? `<div style="font-weight:600;margin:2px 0">${escHtml(a.title)}</div>` : ''}
       <div class="annotation-message">${linkifyUrls(a.message)}</div>
     </div>`).join('');
+  }
+
+  async function refreshNotifications() {
+    const raw = await fetchJson('/api/notifications');
+    const data = filterByAccount(raw);
+    if (!data) return;
+    const body = document.getElementById('notificationsBody');
+    body.innerHTML = data.map(n => `<tr>
+      <td>${escHtml(n.repoName || '')}</td>
+      <td>${escHtml(n.type || '')}</td>
+      <td title="${escHtml(n.title)}">${escHtml(n.title)}</td>
+      <td>${escHtml(n.reason || '')}</td>
+      <td>${fmt(n.updatedAt)}</td>
+      <td>${n.url ? `<a href="${escHtml(n.url)}" target="_blank" rel="noopener">Open ↗</a>` : '—'}</td>
+    </tr>`).join('');
+  }
+
+  async function refreshIssues() {
+    const raw = await fetchJson('/api/issues');
+    const data = filterByAccount(raw);
+    if (!data) return;
+    const body = document.getElementById('issuesBody');
+    body.innerHTML = data.map(i => `<tr>
+      <td>${escHtml(i.repoName || '')}</td>
+      <td>${i.number || ''}</td>
+      <td title="${escHtml(i.title)}">${escHtml(i.title)}</td>
+      <td>${escHtml(i.author || '')}</td>
+      <td>${escHtml(i.state || '')}</td>
+      <td>${escHtml((i.labels || []).join(', '))}</td>
+      <td>${fmt(i.updatedAt)}</td>
+      <td>${i.url ? `<a href="${escHtml(i.url)}" target="_blank" rel="noopener">Open ↗</a>` : '—'}</td>
+    </tr>`).join('');
   }
 
   // Initial load + polling

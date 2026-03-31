@@ -36,8 +36,26 @@ public class DashboardViewModel : ReactiveObject, IDisposable
     public ObservableCollection<IssueInfo> Issues { get; } = new();
     public ObservableCollection<NotificationService.NotificationEvent> PendingNotifications { get; } = new();
 
+    // Unfiltered data for account filtering
+    private List<ReviewRequestInfo> _allReviews = new();
+    private List<PullRequestInfo> _allPrs = new();
+    private List<CiRunInfo> _allCiRuns = new();
+    private List<NotificationInfo> _allNotifications = new();
+    private List<IssueInfo> _allIssues = new();
+
     // Sidebar account list
     public ObservableCollection<AccountItemViewModel> AccountItems { get; } = new();
+
+    private AccountItemViewModel? _selectedAccountItem;
+    public AccountItemViewModel? SelectedAccountItem
+    {
+        get => _selectedAccountItem;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedAccountItem, value);
+            ApplyAccountFilter();
+        }
+    }
 
     // Detail panel collections
     public ObservableCollection<AnnotationInfo> Annotations { get; } = new();
@@ -125,6 +143,13 @@ public class DashboardViewModel : ReactiveObject, IDisposable
         get => _scopeWarning;
         set => this.RaiseAndSetIfChanged(ref _scopeWarning, value);
     }
+
+    private bool _showAccountColumn = true;
+    public bool ShowAccountColumn
+    {
+        get => _showAccountColumn;
+        set => this.RaiseAndSetIfChanged(ref _showAccountColumn, value);
+    }
     // --- Action Detail Panel ---
     private bool _isActionDetailVisible;
     public bool IsActionDetailVisible
@@ -178,9 +203,13 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
     public ReactiveCommand<string, Unit> OpenUrlCommand { get; }
+    public ReactiveCommand<Unit, Unit> DismissScopeWarningCommand { get; }
 
     /// <summary>The currently selected provider for detail panel operations (annotations, comments).</summary>
-    public IScmProvider? ActiveProvider => _accountManager.ActiveProvider;
+    public IScmProvider? ActiveProvider =>
+        _selectedAccountItem != null
+            ? _accountManager.GetProvider(_selectedAccountItem.AccountId)
+            : _accountManager.ActiveProvider;
 
     public DashboardViewModel(AccountManager accountManager, ConfigService configService, NotificationService notificationService)
     {
@@ -193,6 +222,7 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshDataAsync);
         OpenUrlCommand = ReactiveCommand.Create<string>(OpenUrl);
+        DismissScopeWarningCommand = ReactiveCommand.Create(() => { ScopeWarning = string.Empty; });
 
         RebuildAccountItems();
     }
@@ -237,6 +267,37 @@ public class DashboardViewModel : ReactiveObject, IDisposable
                 ProviderType = provider.ProviderType.ToString()
             });
         }
+    }
+
+    private static string NormalizeRepoName(string? repoName)
+    {
+        if (string.IsNullOrWhiteSpace(repoName)) return string.Empty;
+
+        var normalized = repoName.Trim().TrimEnd('/');
+        var slashIndex = normalized.LastIndexOf('/');
+        return slashIndex >= 0 ? normalized[(slashIndex + 1)..] : normalized;
+    }
+
+    private static List<T> FilterByConfiguredRepositories<T>(
+        IEnumerable<T> items,
+        ScmAccountConfig? account,
+        Func<T, string> repoSelector)
+    {
+        if (account == null || account.Repositories.Count == 0)
+            return items.ToList();
+
+        var configuredRepos = account.Repositories
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(NormalizeRepoName)
+            .Where(r => r.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (configuredRepos.Count == 0)
+            return items.ToList();
+
+        return items
+            .Where(item => configuredRepos.Contains(NormalizeRepoName(repoSelector(item))))
+            .ToList();
     }
 
     private async Task RefreshDataAsync()
@@ -296,11 +357,26 @@ public class DashboardViewModel : ReactiveObject, IDisposable
 
             foreach (var result in results)
             {
-                allReviews.AddRange(result.Reviews);
-                allPrs.AddRange(result.Prs);
-                allCiRuns.AddRange(result.CiRuns);
-                allNotifications.AddRange(result.Notifications);
-                allIssues.AddRange(result.Issues);
+                // Tag items with their source account ID and name
+                var acctConfig = _configService.Config.Accounts.FirstOrDefault(a => a.Id == result.Provider.AccountId);
+                var acctName = acctConfig?.DisplayName ?? result.Provider.AccountId;
+                var filteredReviews = FilterByConfiguredRepositories(result.Reviews, acctConfig, r => r.RepoName);
+                var filteredPrs = FilterByConfiguredRepositories(result.Prs, acctConfig, p => p.RepoName);
+                var filteredCiRuns = FilterByConfiguredRepositories(result.CiRuns, acctConfig, c => c.RepoName);
+                var filteredNotifications = FilterByConfiguredRepositories(result.Notifications, acctConfig, n => n.RepoName);
+                var filteredIssues = FilterByConfiguredRepositories(result.Issues, acctConfig, i => i.RepoName);
+
+                foreach (var r in filteredReviews) { r.AccountId = result.Provider.AccountId; r.AccountName = acctName; }
+                foreach (var p in filteredPrs) { p.AccountId = result.Provider.AccountId; p.AccountName = acctName; }
+                foreach (var c in filteredCiRuns) { c.AccountId = result.Provider.AccountId; c.AccountName = acctName; }
+                foreach (var n in filteredNotifications) { n.AccountId = result.Provider.AccountId; n.AccountName = acctName; }
+                foreach (var i in filteredIssues) { i.AccountId = result.Provider.AccountId; i.AccountName = acctName; }
+
+                allReviews.AddRange(filteredReviews);
+                allPrs.AddRange(filteredPrs);
+                allCiRuns.AddRange(filteredCiRuns);
+                allNotifications.AddRange(filteredNotifications);
+                allIssues.AddRange(filteredIssues);
 
                 // Update sidebar status dot
                 var accountItem = AccountItems.FirstOrDefault(a => a.AccountId == result.Provider.AccountId);
@@ -313,22 +389,16 @@ public class DashboardViewModel : ReactiveObject, IDisposable
                     ErrorMessage = result.Error;
             }
 
+            // Store unfiltered data
+            _allReviews = allReviews.OrderByDescending(r => r.CreatedAt).ToList();
+            _allPrs = allPrs.OrderByDescending(p => p.UpdatedAt).ToList();
+            _allCiRuns = allCiRuns.OrderByDescending(c => c.CreatedAt).ToList();
+            _allNotifications = allNotifications.OrderByDescending(n => n.UpdatedAt).ToList();
+            _allIssues = allIssues.OrderByDescending(i => i.UpdatedAt).ToList();
+
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                ReviewRequests.Clear();
-                foreach (var r in allReviews.OrderByDescending(r => r.CreatedAt)) ReviewRequests.Add(r);
-
-                OpenPullRequests.Clear();
-                foreach (var pr in allPrs.OrderByDescending(p => p.UpdatedAt)) OpenPullRequests.Add(pr);
-
-                CiRuns.Clear();
-                foreach (var a in allCiRuns.OrderByDescending(c => c.CreatedAt)) CiRuns.Add(a);
-
-                Notifications.Clear();
-                foreach (var n in allNotifications.OrderByDescending(n => n.UpdatedAt)) Notifications.Add(n);
-
-                Issues.Clear();
-                foreach (var i in allIssues.OrderByDescending(i => i.UpdatedAt)) Issues.Add(i);
+                ApplyAccountFilter();
 
                 // Hide detail panels on refresh so stale data isn't shown
                 IsActionDetailVisible = false;
@@ -383,6 +453,44 @@ public class DashboardViewModel : ReactiveObject, IDisposable
         {
             IsLoading = false;
         }
+    }
+
+    private void ApplyAccountFilter()
+    {
+        var filterId = _selectedAccountItem?.AccountId;
+        ShowAccountColumn = filterId == null;
+
+        // Clear detail panels when switching accounts
+        IsActionDetailVisible = false;
+        IsPrDetailVisible = false;
+        Annotations.Clear();
+        PrComments.Clear();
+
+        var reviews = filterId != null ? _allReviews.Where(r => r.AccountId == filterId) : _allReviews;
+        var prs = filterId != null ? _allPrs.Where(p => p.AccountId == filterId) : _allPrs;
+        var ciRuns = filterId != null ? _allCiRuns.Where(c => c.AccountId == filterId) : _allCiRuns;
+        var notifications = filterId != null ? _allNotifications.Where(n => n.AccountId == filterId) : _allNotifications;
+        var issues = filterId != null ? _allIssues.Where(i => i.AccountId == filterId) : _allIssues;
+
+        ReviewRequests.Clear();
+        foreach (var r in reviews) ReviewRequests.Add(r);
+
+        OpenPullRequests.Clear();
+        foreach (var pr in prs) OpenPullRequests.Add(pr);
+
+        CiRuns.Clear();
+        foreach (var c in ciRuns) CiRuns.Add(c);
+
+        Notifications.Clear();
+        foreach (var n in notifications) Notifications.Add(n);
+
+        Issues.Clear();
+        foreach (var i in issues) Issues.Add(i);
+    }
+
+    public void ClearAccountFilter()
+    {
+        SelectedAccountItem = null;
     }
 
     private void OpenUrl(string url)

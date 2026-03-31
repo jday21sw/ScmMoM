@@ -15,7 +15,17 @@ public class GiteaProvider : IScmProvider
     public ScmProviderType ProviderType => ScmProviderType.Gitea;
     public RateLimitInfo? LastRateLimit { get; private set; }
 
-    private string BaseUrl => _account.ServerUrl.TrimEnd('/');
+    private string BaseUrl
+    {
+        get
+        {
+            var url = _account.ServerUrl.TrimEnd('/');
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "https://" + url;
+            return url;
+        }
+    }
 
     public GiteaProvider(ScmAccountConfig account)
     {

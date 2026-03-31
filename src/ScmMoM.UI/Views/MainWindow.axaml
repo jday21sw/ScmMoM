@@ -4,7 +4,7 @@
         xmlns:models="using:ScmMoM.Core.Models"
         x:Class="ScmMoM.UI.Views.MainWindow"
         Title="ScmMoM — Source Code Monitor of Monitors"
-        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
+        Icon="avares://ScmMoM.UI/Assets/scmmom-icon.ico"
         Width="1100" Height="750"
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen">
@@ -80,7 +80,13 @@
     <!-- Token Scope Warning Banner -->
     <Border DockPanel.Dock="Top" Padding="12,6" Background="#FFF3CD" CornerRadius="0"
             IsVisible="{Binding ScopeWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-      <TextBlock Text="{Binding ScopeWarning}" Foreground="#856404" TextWrapping="Wrap" FontSize="12" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding ScopeWarning}" Foreground="#856404" TextWrapping="Wrap" FontSize="12"
+                   VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Dismiss" FontSize="11" Padding="8,3" Margin="8,0,0,0"
+                Command="{Binding DismissScopeWarningCommand}" VerticalAlignment="Center"
+                Background="#856404" Foreground="White" />
+      </Grid>
     </Border>
 
     <!-- Loading Bar -->
@@ -95,21 +101,24 @@
               Padding="8">
         <DockPanel>
           <TextBlock DockPanel.Dock="Top" Text="Accounts" FontWeight="SemiBold" FontSize="13" Margin="4,4,4,8" />
-          <ItemsControl ItemsSource="{Binding AccountItems}">
-            <ItemsControl.ItemTemplate>
+          <StackPanel DockPanel.Dock="Bottom" Margin="4,4,4,0">
+            <Button Content="Show All" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    FontSize="11" Padding="4,3" Name="ShowAllAccountsButton" />
+          </StackPanel>
+          <ListBox ItemsSource="{Binding AccountItems}"
+                   SelectedItem="{Binding SelectedAccountItem}"
+                   Name="AccountListBox">
+            <ListBox.ItemTemplate>
               <DataTemplate>
-                <Border Padding="6,4" Margin="0,1" CornerRadius="4"
-                        Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="{Binding StatusDot}" FontSize="10" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding ProviderIcon}" FontSize="14" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis" MaxWidth="110" />
-                  </StackPanel>
-                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,2">
+                  <TextBlock Text="{Binding StatusDot}" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding ProviderIcon}" FontSize="14" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                </StackPanel>
               </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </DockPanel>
       </Border>
 
@@ -135,6 +144,8 @@
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True">
           <DataGrid.Columns>
+            <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" Width="90"
+                                IsVisible="{Binding $parent[DataGrid].DataContext.ShowAccountColumn}" />
             <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
             <DataGridTextColumn Header="#" Binding="{Binding PullRequestNumber}" Width="60" />
             <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
@@ -177,6 +188,8 @@
                     MaxHeight="300"
                     Grid.Row="0">
             <DataGrid.Columns>
+              <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" Width="90"
+                                  IsVisible="{Binding $parent[DataGrid].DataContext.ShowAccountColumn}" />
               <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
               <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="60" />
               <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
@@ -207,7 +220,7 @@
           <!-- PR Comments Detail Panel -->
           <Border Grid.Row="1"
                   Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
-                  BorderBrush="Gray" BorderThickness="0,1,0,0"
+                  BorderBrush="Gray" BorderThickness="0,3,0,0"
                   Padding="12,8"
                   IsVisible="{Binding IsPrDetailVisible}">
             <DockPanel>
@@ -226,7 +239,7 @@
                             <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
                                        Foreground="Gray" FontSize="11" />
                             <Button Content="🔗" FontSize="10" Padding="2,0"
-                                    Command="{Binding $parent[DockPanel].Tag}"
+                                    Command="{Binding $parent[Grid].Tag}"
                                     CommandParameter="{Binding HtmlUrl}" />
                           </StackPanel>
                           <TextBlock Text="{Binding Body}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0" />
@@ -264,6 +277,8 @@
                     MaxHeight="300"
                     Grid.Row="0">
             <DataGrid.Columns>
+              <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" Width="90"
+                                  IsVisible="{Binding $parent[DataGrid].DataContext.ShowAccountColumn}" />
               <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
               <DataGridTextColumn Header="Workflow" Binding="{Binding WorkflowName}" Width="*" />
               <DataGridTextColumn Header="#" Binding="{Binding RunNumber}" Width="70" />
@@ -306,7 +321,7 @@
           <!-- Annotations Detail Panel -->
           <Border Grid.Row="1"
                   Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
-                  BorderBrush="Gray" BorderThickness="0,1,0,0"
+                  BorderBrush="Gray" BorderThickness="0,3,0,0"
                   Padding="12,8"
                   IsVisible="{Binding IsActionDetailVisible}">
             <DockPanel>
@@ -367,6 +382,8 @@
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True">
           <DataGrid.Columns>
+            <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" Width="90"
+                                IsVisible="{Binding $parent[DataGrid].DataContext.ShowAccountColumn}" />
             <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
             <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="100" />
             <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />
@@ -405,6 +422,8 @@
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True">
           <DataGrid.Columns>
+            <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" Width="90"
+                                IsVisible="{Binding $parent[DataGrid].DataContext.ShowAccountColumn}" />
             <DataGridTextColumn Header="Repo" Binding="{Binding RepoName}" Width="140" />
             <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="60" />
             <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*" />

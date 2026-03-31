@@ -18,9 +18,20 @@ public class GitLabProvider : IScmProvider
     public ScmProviderType ProviderType => ScmProviderType.GitLab;
     public RateLimitInfo? LastRateLimit { get; private set; }
 
-    private string BaseUrl => string.IsNullOrWhiteSpace(_account.ServerUrl)
-        ? "https://gitlab.com"
-        : _account.ServerUrl.TrimEnd('/');
+    private string BaseUrl
+    {
+        get
+        {
+            var url = string.IsNullOrWhiteSpace(_account.ServerUrl)
+                ? "https://gitlab.com"
+                : _account.ServerUrl.TrimEnd('/');
+            // Ensure the URL has a scheme
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "https://" + url;
+            return url;
+        }
+    }
 
     public GitLabProvider(ScmAccountConfig account)
     {

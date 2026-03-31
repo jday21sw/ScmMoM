@@ -12,11 +12,26 @@ public class AccountEntryViewModel : ReactiveObject
     public string AccountId { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
     public string ProviderIcon { get; init; } = string.Empty;
-    public string Detail { get; init; } = string.Empty;
+
+    private string _detail = string.Empty;
+    public string Detail { get => _detail; set => this.RaiseAndSetIfChanged(ref _detail, value); }
 
     private string _statusIcon = "⏳";
     public string StatusIcon { get => _statusIcon; set => this.RaiseAndSetIfChanged(ref _statusIcon, value); }
 
+    private string _statusTooltip = string.Empty;
+    public string StatusTooltip { get => _statusTooltip; set => this.RaiseAndSetIfChanged(ref _statusTooltip, value); }
+
+    private bool _needsToken;
+    public bool NeedsToken { get => _needsToken; set => this.RaiseAndSetIfChanged(ref _needsToken, value); }
+
+    private string _editToken = string.Empty;
+    public string EditToken { get => _editToken; set => this.RaiseAndSetIfChanged(ref _editToken, value); }
+
+    private bool _rememberToken = true;
+    public bool RememberToken { get => _rememberToken; set => this.RaiseAndSetIfChanged(ref _rememberToken, value); }
+
+    public ReactiveCommand<Unit, Unit> SaveTokenCommand { get; init; } = null!;
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; init; } = null!;
 }
 
@@ -60,6 +75,19 @@ public class LoginViewModel : ReactiveObject
     private bool _newRememberToken;
     public bool NewRememberToken { get => _newRememberToken; set => this.RaiseAndSetIfChanged(ref _newRememberToken, value); }
 
+    private string _newOrganization = string.Empty;
+    public string NewOrganization { get => _newOrganization; set => this.RaiseAndSetIfChanged(ref _newOrganization, value); }
+
+    private string _newRepositories = string.Empty;
+    public string NewRepositories { get => _newRepositories; set => this.RaiseAndSetIfChanged(ref _newRepositories, value); }
+
+    private bool _isAddFormVisible;
+    public bool IsAddFormVisible { get => _isAddFormVisible; set => this.RaiseAndSetIfChanged(ref _isAddFormVisible, value); }
+
+    public string AddFormButtonText => IsAddFormVisible ? "Cancel" : "+ Add Account";
+
+    public ReactiveCommand<Unit, Unit> ToggleAddFormCommand { get; }
+
     private string _errorMessage = string.Empty;
     public string ErrorMessage { get => _errorMessage; set => this.RaiseAndSetIfChanged(ref _errorMessage, value); }
 
@@ -92,6 +120,12 @@ public class LoginViewModel : ReactiveObject
         }
         HasAccounts = AccountEntries.Count > 0;
 
+        ToggleAddFormCommand = ReactiveCommand.Create(() =>
+        {
+            IsAddFormVisible = !IsAddFormVisible;
+            this.RaisePropertyChanged(nameof(AddFormButtonText));
+        });
+
         var canAdd = this.WhenAnyValue(
             x => x.NewUsername, x => x.NewToken, x => x.IsConnecting,
             (u, t, c) => !string.IsNullOrWhiteSpace(u) && !string.IsNullOrWhiteSpace(t) && !c);
@@ -105,6 +139,7 @@ public class LoginViewModel : ReactiveObject
 
     private void AddAccountEntry(ScmAccountConfig account, string? token)
     {
+        var hasToken = token != null;
         var entry = new AccountEntryViewModel
         {
             AccountId = account.Id,
@@ -116,11 +151,57 @@ public class LoginViewModel : ReactiveObject
                 ScmProviderType.Gitea => "🍵",
                 _ => "🔗"
             },
-            Detail = token != null ? $"{account.Username} — token saved" : $"{account.Username} — no token",
-            StatusIcon = token != null ? "✅" : "⚠️",
+            Detail = hasToken ? $"{account.Username} — token saved" : $"{account.Username} — no token",
+            StatusIcon = hasToken ? "✅" : "⚠️",
+            StatusTooltip = hasToken ? "Token saved — ready to connect" : "No saved token — enter a token below",
+            NeedsToken = !hasToken,
+            SaveTokenCommand = ReactiveCommand.CreateFromTask<Unit, Unit>(async _ => { await SaveTokenForAccount(account.Id); return Unit.Default; }),
             RemoveCommand = ReactiveCommand.Create(() => RemoveAccount(account.Id))
         };
         AccountEntries.Add(entry);
+    }
+
+    private async Task SaveTokenForAccount(string accountId)
+    {
+        var entry = AccountEntries.FirstOrDefault(e => e.AccountId == accountId);
+        if (entry == null || string.IsNullOrWhiteSpace(entry.EditToken)) return;
+
+        var account = _configService.Config.Accounts.FirstOrDefault(a => a.Id == accountId);
+        if (account == null) return;
+
+        IsConnecting = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            // Validate the token
+            var provider = _accountManager.CreateProvider(account);
+            provider.Initialize(entry.EditToken.Trim(), account.Username);
+            await provider.ValidateTokenAsync();
+            _accountManager.AddProvider(provider);
+
+            // Save token if requested
+            if (entry.RememberToken)
+            {
+                account.RememberToken = true;
+                _tokenStore.SaveToken($"scmmom:{accountId}", account.Username, entry.EditToken.Trim());
+                _configService.Save();
+            }
+
+            // Update entry UI
+            entry.StatusIcon = "✅";
+            entry.StatusTooltip = "Token saved — ready to connect";
+            entry.Detail = $"{account.Username} — token saved";
+            entry.NeedsToken = false;
+            entry.EditToken = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Token validation failed for '{account.DisplayName}': {ex.Message}";
+        }
+        finally
+        {
+            IsConnecting = false;
+        }
     }
 
     private void RemoveAccount(string accountId)
@@ -155,8 +236,23 @@ public class LoginViewModel : ReactiveObject
                 DisplayName = string.IsNullOrWhiteSpace(NewDisplayName) ? $"{providerType}" : NewDisplayName.Trim(),
                 ServerUrl = NewServerUrl.Trim(),
                 Username = NewUsername.Trim(),
+                Organization = NewOrganization.Trim(),
+                Repositories = string.IsNullOrWhiteSpace(NewRepositories)
+                    ? new List<string>()
+                    : NewRepositories.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList(),
                 RememberToken = NewRememberToken
             };
+
+            // Prevent duplicate accounts (same provider + username + server)
+            var isDuplicate = _configService.Config.Accounts.Any(a =>
+                a.ProviderType == account.ProviderType &&
+                string.Equals(a.Username, account.Username, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(a.ServerUrl, account.ServerUrl, StringComparison.OrdinalIgnoreCase));
+            if (isDuplicate)
+            {
+                ErrorMessage = $"An account for {providerType} user '{account.Username}' already exists.";
+                return;
+            }
 
             // Validate by creating a provider and testing the token
             var provider = _accountManager.CreateProvider(account);
@@ -181,7 +277,11 @@ public class LoginViewModel : ReactiveObject
             NewUsername = string.Empty;
             NewToken = string.Empty;
             NewRememberToken = false;
+            NewOrganization = string.Empty;
+            NewRepositories = string.Empty;
             SelectedProviderIndex = 0;
+            IsAddFormVisible = false;
+            this.RaisePropertyChanged(nameof(AddFormButtonText));
         }
         catch (Exception ex)
         {

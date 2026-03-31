@@ -17,6 +17,9 @@
             <span class="meta">User: <strong id="username">—</strong></span>
             <span class="meta">Org: <strong id="organization">—</strong></span>
             <span class="meta">Last refresh: <span id="lastRefresh">—</span></span>
+            <select id="accountSelector" class="account-select">
+                <option value="">All Accounts</option>
+            </select>
         </div>
         <div class="header-right">
             <span class="rate-limit">
@@ -32,6 +35,9 @@
                 id="reviewBadge">0</span></button>
         <button class="tab" data-tab="prs">🔀 Open Pull Requests <span class="badge" id="prBadge">0</span></button>
         <button class="tab" data-tab="actions">⚡ CI Runs <span class="badge" id="actionBadge">0</span></button>
+        <button class="tab" data-tab="notifications">🔔 Notifications <span class="badge"
+                id="notifBadge">0</span></button>
+        <button class="tab" data-tab="issues">📌 Issues <span class="badge" id="issueBadge">0</span></button>
     </nav>
 
     <main>
@@ -98,6 +104,44 @@
             <div id="actionDetail" class="detail-panel hidden">
                 <h4 id="actionDetailHeader"></h4>
                 <div id="actionAnnotations"></div>
+            </div>
+        </section>
+
+        <section id="notifications" class="tab-content">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Repo</th>
+                            <th>Type</th>
+                            <th>Title</th>
+                            <th>Reason</th>
+                            <th>Updated</th>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notificationsBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="issues" class="tab-content">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Repo</th>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>State</th>
+                            <th>Labels</th>
+                            <th>Updated</th>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody id="issuesBody"></tbody>
+                </table>
             </div>
         </section>
     </main>

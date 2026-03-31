@@ -25,6 +25,8 @@ public class AccountSettingsItem : ReactiveObject
 
     private string _serverUrl = string.Empty;
     public string ServerUrl { get => _serverUrl; set => this.RaiseAndSetIfChanged(ref _serverUrl, value); }
+
+    public ReactiveCommand<Unit, Unit>? RemoveCommand { get; init; }
 }
 
 public class SettingsViewModel : ReactiveObject
@@ -85,9 +87,14 @@ public class SettingsViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> GeneratePskCommand { get; }
 
-    public SettingsViewModel(ConfigService configService)
+    private readonly ITokenStore? _tokenStore;
+    private readonly AccountManager? _accountManager;
+
+    public SettingsViewModel(ConfigService configService, ITokenStore? tokenStore = null, AccountManager? accountManager = null)
     {
         _configService = configService;
+        _tokenStore = tokenStore;
+        _accountManager = accountManager;
         var cfg = configService.Config;
 
         // Load all account settings
@@ -100,7 +107,8 @@ public class SettingsViewModel : ReactiveObject
                 ProviderType = account.ProviderType.ToString(),
                 Organization = account.Organization,
                 RepositoriesCsv = string.Join(", ", account.Repositories),
-                ServerUrl = account.ServerUrl
+                ServerUrl = account.ServerUrl,
+                RemoveCommand = ReactiveCommand.Create(() => RemoveAccount(account.Id))
             });
         }
 
@@ -119,6 +127,19 @@ public class SettingsViewModel : ReactiveObject
     {
         var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
         ApiPsk = Convert.ToBase64String(bytes);
+    }
+
+    private void RemoveAccount(string accountId)
+    {
+        _configService.Config.Accounts.RemoveAll(a => a.Id == accountId);
+        _configService.Save();
+        _tokenStore?.RemoveToken($"scmmom:{accountId}");
+        _accountManager?.RemoveProvider(accountId);
+
+        var item = AccountSettings.FirstOrDefault(a => a.AccountId == accountId);
+        if (item != null) AccountSettings.Remove(item);
+
+        StatusMessage = "Account removed. Restart the app to fully apply changes.";
     }
 
     private void Save()

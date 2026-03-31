@@ -21,9 +21,16 @@ public class GitHubProvider : IScmProvider
     public void Initialize(string token, string username)
     {
         _username = username;
-        var baseAddress = !string.IsNullOrWhiteSpace(_account.ServerUrl)
-            ? new Uri(_account.ServerUrl)
-            : GitHubClient.GitHubApiUrl;
+        Uri baseAddress = GitHubClient.GitHubApiUrl;
+        if (!string.IsNullOrWhiteSpace(_account.ServerUrl))
+        {
+            var url = _account.ServerUrl.TrimEnd('/');
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "https://" + url;
+            if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
+                baseAddress = parsed;
+        }
 
         _client = new GitHubClient(new ProductHeaderValue("ScmMoM-Monitor"), baseAddress)
         {

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ScmMoM
+Comment=Source Code Monitor of Monitors
+Exec=ScmMoM.UI
+Icon=scmmom-icon-512
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=ScmMoM.UI

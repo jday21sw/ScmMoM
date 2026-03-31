@@ -90,12 +90,22 @@ public partial class App : Application
             Username = authenticatedUsername
         };
 
-        // Check token scopes for excessive permissions
-        var provider = accountManager.ActiveProvider;
-        var scopeWarning = provider?.CheckTokenScopes();
-        if (scopeWarning != null)
+        // Check token scopes for excessive permissions across all accounts
+        var scopeMessages = new List<string>();
+        foreach (var kvp in accountManager.Providers)
         {
-            _dashboardVm.ScopeWarning = $"\u26a0 {scopeWarning.Message}";
+            var prov = kvp.Value;
+            var scopeWarning = prov.CheckTokenScopes();
+            if (scopeWarning != null)
+            {
+                var acctConfig = configService.Config.Accounts.FirstOrDefault(a => a.Id == prov.AccountId);
+                var name = acctConfig?.DisplayName ?? prov.AccountId;
+                scopeMessages.Add($"{name}: {scopeWarning.Message}");
+            }
+        }
+        if (scopeMessages.Count > 0)
+        {
+            _dashboardVm.ScopeWarning = $"\u26a0 {string.Join(" | ", scopeMessages)}";
         }
 
         _mainWindow = new MainWindow { DataContext = _dashboardVm };

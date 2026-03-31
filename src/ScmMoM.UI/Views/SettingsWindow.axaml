@@ -3,10 +3,10 @@
         xmlns:vm="using:ScmMoM.UI.ViewModels"
         x:Class="ScmMoM.UI.Views.SettingsWindow"
         Title="ScmMoM — Settings"
-        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
-        Width="560" Height="700"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        Icon="avares://ScmMoM.UI/Assets/scmmom-icon.ico"
+        Width="600" Height="800"
+        MinWidth="500" MinHeight="500"
+        WindowStartupLocation="CenterOwner">
 
   <Design.DataContext>
     <vm:SettingsViewModel />
@@ -14,7 +14,7 @@
 
   <Border Padding="24">
     <ScrollViewer>
-    <StackPanel Spacing="14">
+    <StackPanel Spacing="14" Margin="0,0,12,0">
 
       <TextBlock Text="Settings" FontSize="20" FontWeight="Bold" />
       <Separator />
@@ -26,10 +26,14 @@
           <DataTemplate>
             <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12,8" Margin="0,4">
               <StackPanel Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBlock Text="{Binding ProviderType}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding AccountId}" Foreground="Gray" FontSize="11" VerticalAlignment="Center" />
-                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding ProviderType}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding AccountId}" Foreground="Gray" FontSize="11" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="✕ Remove" FontSize="11" Padding="6,2"
+                          Command="{Binding RemoveCommand}" Foreground="Red" />
+                </Grid>
                 <TextBlock Text="Display Name" FontSize="11" Foreground="Gray" />
                 <TextBox Text="{Binding DisplayName}" />
                 <TextBlock Text="Organization / Group" FontSize="11" Foreground="Gray" />
@@ -43,6 +47,9 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+
+      <TextBlock Text="To add a new account, use the Login window on next startup."
+                 Foreground="Gray" FontSize="11" FontStyle="Italic" />
 
       <Separator />
 

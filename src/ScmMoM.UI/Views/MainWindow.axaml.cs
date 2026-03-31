@@ -65,6 +65,17 @@ public partial class MainWindow : ReactiveWindow<DashboardViewModel>
             };
         }
 
+        var showAllButton = this.FindControl<Button>("ShowAllAccountsButton");
+        if (showAllButton != null)
+        {
+            showAllButton.Click += (_, _) =>
+            {
+                ViewModel?.ClearAccountFilter();
+                var listBox = this.FindControl<Avalonia.Controls.ListBox>("AccountListBox");
+                if (listBox != null) listBox.SelectedItem = null;
+            };
+        }
+
         // Wire up DataGrid selection for detail panels
         var actionsGrid = this.FindControl<DataGrid>("ActionsDataGrid");
         if (actionsGrid != null)
@@ -192,7 +203,10 @@ public partial class MainWindow : ReactiveWindow<DashboardViewModel>
         var configService = App.Services.GetService(typeof(ConfigService)) as ConfigService;
         if (configService == null) return;
 
-        var settingsVm = new SettingsViewModel(configService);
+        var tokenStore = App.Services.GetService(typeof(ITokenStore)) as ITokenStore;
+        var accountManager = App.Services.GetService(typeof(AccountManager)) as AccountManager;
+
+        var settingsVm = new SettingsViewModel(configService, tokenStore, accountManager);
         var settingsWindow = new SettingsWindow
         {
             DataContext = settingsVm

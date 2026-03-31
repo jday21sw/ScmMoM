@@ -3,7 +3,7 @@
         xmlns:vm="using:ScmMoM.UI.ViewModels"
         x:Class="ScmMoM.UI.Views.CompactWindow"
         Title="ScmMoM"
-        Icon="avares://ScmMoM.UI/Assets/bpm-icon.ico"
+        Icon="avares://ScmMoM.UI/Assets/scmmom-icon.ico"
         Width="460" Height="80"
         MinWidth="460" MinHeight="80"
         MaxWidth="460" MaxHeight="80"

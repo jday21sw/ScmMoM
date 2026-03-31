@@ -58,6 +58,16 @@ header {
   display: inline-block;
 }
 
+.account-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .tabs {
   display: flex;
   gap: 0;
