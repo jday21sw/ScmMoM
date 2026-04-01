@@ -123,22 +123,28 @@ jobs:
           Set-Content -Path $manifestPath -Value $appxManifest -Encoding utf8
 
           $msixPath = "${{ matrix.artifact }}.msix"
-          $makeAppx = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          $makeAppxCandidates = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending
+          $makeAppx = $makeAppxCandidates |
+            Where-Object { $_.FullName -match '\\x64\\makeappx\.exe$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $makeAppx) {
+            $makeAppx = $makeAppxCandidates | Select-Object -First 1 -ExpandProperty FullName
+          }
 
-          if ($makeAppx) {
-            try {
-              & $makeAppx pack /d $artifactDir /p $msixPath /o
-              if ($LASTEXITCODE -ne 0) {
-                throw "makeappx returned exit code $LASTEXITCODE"
-              }
-            } catch {
-              Write-Warning "MSIX packaging via makeappx failed. Falling back to archive packaging with .msix extension."
-              if (Test-Path $msixPath) { Remove-Item $msixPath -Force }
-              Compress-Archive -Path "$artifactDir/*" -DestinationPath $msixPath -Force
-            }
-          } else {
-            Write-Warning "makeappx.exe not found on runner. Falling back to archive packaging with .msix extension."
-            Compress-Archive -Path "$artifactDir/*" -DestinationPath $msixPath -Force
+          if (-not $makeAppx) {
+            Write-Warning "makeappx.exe not found on runner. Skipping MSIX artifact for this build."
+            exit 0
+          }
+
+          Write-Host "Using makeappx: $makeAppx"
+          $packOutput = & $makeAppx pack /d $artifactDir /p $msixPath /o 2>&1
+          $packOutput | ForEach-Object { Write-Host $_ }
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "MSIX packaging failed with exit code $LASTEXITCODE. No .msix will be published from this run."
+            if (Test-Path $msixPath) { Remove-Item $msixPath -Force }
+            exit 0
           }
 
       - name: Upload artifact
