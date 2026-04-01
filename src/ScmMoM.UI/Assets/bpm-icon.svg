@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#24292e"/>
+  
+  <!-- GitHub-style octocat body (simplified cat silhouette) -->
+  <!-- Head -->
+  <ellipse cx="52" cy="52" rx="24" ry="22" fill="white"/>
+  <!-- Left ear -->
+  <polygon points="32,38 28,18 42,34" fill="white"/>
+  <!-- Right ear -->
+  <polygon points="72,38 76,18 62,34" fill="white"/>
+  <!-- Left eye -->
+  <ellipse cx="43" cy="50" rx="4" ry="5" fill="#24292e"/>
+  <!-- Right eye -->
+  <ellipse cx="60" cy="50" rx="4" ry="5" fill="#24292e"/>
+  <!-- Nose/mouth -->
+  <ellipse cx="52" cy="57" rx="3" ry="2" fill="#24292e" opacity="0.5"/>
+  <!-- Body -->
+  <ellipse cx="52" cy="78" rx="18" ry="14" fill="white"/>
+  <!-- Left arm/tentacle -->
+  <path d="M34,74 Q22,78 26,88" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- Right arm/tentacle -->
+  <path d="M70,74 Q78,78 76,88" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- Tail -->
+  <path d="M55,90 Q60,100 52,98" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- Magnifying glass -->
+  <!-- Glass circle -->
+  <circle cx="88" cy="82" r="18" fill="none" stroke="#0078d4" stroke-width="5"/>
+  <circle cx="88" cy="82" r="18" fill="#0078d4" opacity="0.2"/>
+  <!-- Glass handle -->
+  <line x1="100" y1="95" x2="114" y2="109" stroke="#0078d4" stroke-width="6" stroke-linecap="round"/>
+  <!-- Glass highlight -->
+  <path d="M78,74 Q82,68 90,72" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6"/>
+</svg>

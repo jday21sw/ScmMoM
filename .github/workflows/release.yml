@@ -1,0 +1,233 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            artifact: ScmMoM-win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: ScmMoM-linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: ScmMoM-osx-arm64
+          - os: macos-latest
+            rid: osx-x64
+            artifact: ScmMoM-osx-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Compute release version
+        id: version
+        shell: bash
+        run: |
+          raw_ref="${GITHUB_REF#refs/tags/v}"
+          if [ -z "$raw_ref" ] || [ "$raw_ref" = "$GITHUB_REF" ]; then
+            raw_ref="0.1.0"
+          fi
+          normalized="$(echo "$raw_ref" | sed 's/[^0-9.].*$//')"
+          if [ -z "$normalized" ]; then
+            normalized="0.1.0"
+          fi
+          echo "semver=$normalized" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        run: dotnet publish src/ScmMoM.UI -c Release -r ${{ matrix.rid }} --self-contained -o publish/${{ matrix.artifact }}
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path publish/${{ matrix.artifact }}/* -DestinationPath ${{ matrix.artifact }}.zip
+
+      - name: Zip (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: cd publish && zip -r ../${{ matrix.artifact }}.zip ${{ matrix.artifact }}
+
+      - name: Build DEB and RPM
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+          version="${{ steps.version.outputs.semver }}"
+          fpm -s dir -t deb -n scmmom -v "$version" --architecture amd64 --prefix /opt/scmmom -C publish/${{ matrix.artifact }} .
+          fpm -s dir -t rpm -n scmmom -v "$version" --architecture x86_64 --prefix /opt/scmmom -C publish/${{ matrix.artifact }} .
+
+      - name: Build DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          hdiutil create -volname "ScmMoM" -srcfolder "publish/${{ matrix.artifact }}" -ov -format UDZO "${{ matrix.artifact }}.dmg"
+
+      - name: Build MSIX
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $semver = "${{ steps.version.outputs.semver }}"
+          $parts = $semver -split '\\.'
+          while ($parts.Length -lt 4) { $parts += '0' }
+          $msixVersion = ($parts[0..3] -join '.')
+          $artifactDir = "publish/${{ matrix.artifact }}"
+          $manifestPath = Join-Path $artifactDir "AppxManifest.xml"
+          $appxManifest = @(
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap">',
+            "  <Identity Name=\"ScmMoM\" Publisher=\"CN=ScmMoM\" Version=\"$msixVersion\" />",
+            '  <Properties>',
+            '    <DisplayName>ScmMoM</DisplayName>',
+            '    <PublisherDisplayName>John Day</PublisherDisplayName>',
+            '    <Logo>Assets\\StoreLogo.png</Logo>',
+            '  </Properties>',
+            '  <Dependencies>',
+            '    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />',
+            '  </Dependencies>',
+            '  <Resources>',
+            '    <Resource Language="en-us" />',
+            '  </Resources>',
+            '  <Applications>',
+            '    <Application Id="App" Executable="ScmMoM.UI.exe" EntryPoint="Windows.FullTrustApplication">',
+            '      <uap:VisualElements DisplayName="ScmMoM" Description="ScmMoM" Square150x150Logo="Assets\\Square150x150Logo.png" Square44x44Logo="Assets\\Square44x44Logo.png" BackgroundColor="transparent" />',
+            '    </Application>',
+            '  </Applications>',
+            '</Package>'
+          ) -join "`n"
+
+          New-Item -ItemType Directory -Path (Join-Path $artifactDir "Assets") -Force | Out-Null
+          Copy-Item "src/ScmMoM.UI/Assets/scmmom-icon.png" (Join-Path $artifactDir "Assets/StoreLogo.png") -Force
+          Copy-Item "src/ScmMoM.UI/Assets/scmmom-icon.png" (Join-Path $artifactDir "Assets/Square150x150Logo.png") -Force
+          Copy-Item "src/ScmMoM.UI/Assets/scmmom-icon.png" (Join-Path $artifactDir "Assets/Square44x44Logo.png") -Force
+          Set-Content -Path $manifestPath -Value $appxManifest -Encoding utf8
+
+          $makeAppx = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter makeappx.exe | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $makeAppx) {
+            throw "makeappx.exe not found on runner"
+          }
+          & $makeAppx pack /d $artifactDir /p "${{ matrix.artifact }}.msix" /o
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            *.deb
+            *.rpm
+            ${{ matrix.artifact }}.dmg
+            ${{ matrix.artifact }}.msix
+
+  security:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Install Syft and Grype
+        shell: bash
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM and OpenVEX
+        shell: bash
+        run: |
+          mkdir -p security
+          shopt -s globstar nullglob
+          for artifact in artifacts/**/*; do
+            if [ -f "$artifact" ]; then
+              base="$(basename "$artifact")"
+              safe_name="$(echo "$base" | tr '/ :' '_')"
+              sbom="security/${safe_name}.sbom.cdx.json"
+              findings="security/${safe_name}.vulns.json"
+              vex="security/${safe_name}.openvex.json"
+
+              syft "$artifact" -o "cyclonedx-json=$sbom"
+              grype "sbom:$sbom" -o json > "$findings" || true
+
+              now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              vex_id="urn:uuid:$(cat /proc/sys/kernel/random/uuid)"
+              jq -n \
+                --arg now "$now" \
+                --arg vex_id "$vex_id" \
+                --arg artifact_name "$base" \
+                --slurpfile report "$findings" \
+                '{
+                  "@context": "https://openvex.dev/ns/v0.2.0",
+                  "@id": $vex_id,
+                  "author": "github.com/jday21sw/ScmMoM GitHub Actions",
+                  "timestamp": $now,
+                  "version": 1,
+                  "tooling": "grype+jq-openvex-export",
+                  "statements": (
+                    ($report[0].matches // [])
+                    | map({
+                        "vulnerability": {"name": .vulnerability.id},
+                        "products": [{"@id": (.artifact.purl // ("pkg:generic/" + $artifact_name))}],
+                        "status": "under_investigation",
+                        "justification": "vulnerable_code_not_in_execute_path",
+                        "timestamp": $now
+                      })
+                    | unique_by(.vulnerability.name, .products[0]."@id")
+                  )
+                }' > "$vex"
+            fi
+          done
+
+      - name: Upload security artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-artifacts
+          path: security/*
+
+  release:
+    needs:
+      - build
+      - security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Download security artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: security-artifacts
+          path: security
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.msix
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*.dmg
+            security/*.sbom.cdx.json
+            security/*.openvex.json

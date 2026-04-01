@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ScmMoM.UI (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/ScmMoM.UI/bin/Debug/net9.0/ScmMoM.UI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/ScmMoM.UI",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        }
+    ]
+}

@@ -1,0 +1,50 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            artifact: ScmMoM-win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: ScmMoM-linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: ScmMoM-osx-arm64
+          - os: macos-latest
+            rid: osx-x64
+            artifact: ScmMoM-osx-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore ScmMoM.sln
+
+      - name: Build
+        run: dotnet build ScmMoM.sln -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish src/ScmMoM.UI -c Release -r ${{ matrix.rid }} --self-contained -o publish/${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: publish/${{ matrix.artifact }}
