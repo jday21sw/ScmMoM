@@ -88,7 +88,7 @@ jobs:
         shell: pwsh
         run: |
           $semver = "${{ steps.version.outputs.semver }}"
-          $parts = $semver -split '\\.'
+          $parts = $semver -split '\.'
           while ($parts.Length -lt 4) { $parts += '0' }
           $msixVersion = ($parts[0..3] -join '.')
           $artifactDir = "publish/${{ matrix.artifact }}"
@@ -96,7 +96,7 @@ jobs:
           $appxManifest = @(
             '<?xml version="1.0" encoding="utf-8"?>',
             '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap">',
-            "  <Identity Name=\"\"ScmMoM\"\" Publisher=\"\"CN=ScmMoM\"\" Version=\"\"$msixVersion\"\" />",
+            ('  <Identity Name="ScmMoM" Publisher="CN=ScmMoM" Version="{0}" />' -f $msixVersion),
             '  <Properties>',
             '    <DisplayName>ScmMoM</DisplayName>',
             '    <PublisherDisplayName>John Day</PublisherDisplayName>',
