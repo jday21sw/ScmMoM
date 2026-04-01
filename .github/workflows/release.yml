@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -80,6 +81,7 @@ jobs:
 
       - name: Build MSIX
         if: runner.os == 'Windows'
+        continue-on-error: true
         shell: pwsh
         run: |
           $semver = "${{ steps.version.outputs.semver }}"
@@ -137,6 +139,7 @@ jobs:
           }
 
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
