@@ -101,7 +101,7 @@ Create a token through the applications or access tokens settings for the server
 
 ## Configuration Model
 
-Settings are stored in `appsettings.json` alongside the built application. The current configuration shape is account-based:
+Settings are stored in `appsettings.json` under `%LOCALAPPDATA%\\ScmMoM` (for example `C:\\Users\\<you>\\AppData\\Local\\ScmMoM\\appsettings.json`). The current configuration shape is account-based:
 
 ```json
 {

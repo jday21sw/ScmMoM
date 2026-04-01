@@ -34,7 +34,18 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Build DI container
-            var configPath = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var appDataDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ScmMoM");
+            Directory.CreateDirectory(appDataDir);
+
+            var configPath = System.IO.Path.Combine(appDataDir, "appsettings.json");
+            var defaultConfigPath = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            if (!File.Exists(configPath) && File.Exists(defaultConfigPath))
+            {
+                File.Copy(defaultConfigPath, configPath, overwrite: false);
+            }
+
             var services = new ServiceCollection();
             services.AddSingleton(new ConfigService(configPath));
             services.AddSingleton<AccountManager>();
