@@ -56,7 +56,7 @@ On first launch:
 
 ## Windows Installation (MSIX)
 
-Download the `.msix` package from the [latest release](https://github.com/jday21sw/ScmMoM/releases). The package is signed with a self-signed development certificate.
+Download the `.msix` package from the [latest release](https://github.com/jday21sw/ScmMoM/releases). The package is signed with a stable project certificate.
 
 ### Installation Methods
 
@@ -65,7 +65,7 @@ Download the `.msix` package from the [latest release](https://github.com/jday21
 2. Enable **Developer Mode**
 3. Run the downloaded `.msix` file
 
-#### Option 2: Trust the Self-Signed Certificate
+#### Option 2: Trust the Certificate Once (No Developer Mode)
 If you don't want to enable Developer Mode:
 
 Open PowerShell **as Administrator** and run:
@@ -82,6 +82,8 @@ Add-AppxPackage -Path $msixPath
 Download both files from the same release tag:
 - `ScmMoM-win-x64.msix`
 - `ScmMoM-win-x64-signing.cer`
+
+After you import `ScmMoM-win-x64-signing.cer` once, future releases signed with the same project certificate can be installed without re-importing the certificate.
 
 ## Provider Token Guidance
 

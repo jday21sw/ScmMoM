@@ -150,13 +150,22 @@ jobs:
             exit 0
           }
 
-          # Sign the MSIX package with a self-signed certificate
+          # Sign the MSIX package with a stable certificate from repository secrets
           Write-Host "Signing MSIX package..."
-          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=ScmMoM" -FriendlyName "ScmMoM Self-Signed Code Signing" -NotAfter (Get-Date).AddYears(10)
+          $certBase64 = "${{ secrets.MSIX_CERT_PFX_BASE64 }}"
+          $certPasswordPlain = "${{ secrets.MSIX_CERT_PFX_PASSWORD }}"
+          $certCerBase64 = "${{ secrets.MSIX_CERT_CER_BASE64 }}"
           $certPath = "$env:TEMP\ScmMoM-signing.pfx"
-          $certPassword = ConvertTo-SecureString -String "ScmMoM-CI-Build-Cert-Temp" -Force -AsPlainText
-          Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $certPassword | Out-Null
-          Export-Certificate -Cert $cert -FilePath "${{ matrix.artifact }}-signing.cer" | Out-Null
+          if ([string]::IsNullOrWhiteSpace($certBase64) -or [string]::IsNullOrWhiteSpace($certPasswordPlain)) {
+            Write-Warning "MSIX_CERT_PFX_BASE64 or MSIX_CERT_PFX_PASSWORD is not configured. MSIX will be published unsigned."
+            exit 0
+          }
+
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($certBase64))
+
+          if (-not [string]::IsNullOrWhiteSpace($certCerBase64)) {
+            [IO.File]::WriteAllBytes("${{ matrix.artifact }}-signing.cer", [Convert]::FromBase64String($certCerBase64))
+          }
 
           $signtoolCandidates = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending
@@ -169,7 +178,7 @@ jobs:
 
           if ($signtool) {
             Write-Host "Using signtool: $signtool"
-            & $signtool sign /f $certPath /p "ScmMoM-CI-Build-Cert-Temp" /fd SHA256 /tr http://timestamp.comodoca.com/rfc3161 /td SHA256 $msixPath
+            & $signtool sign /f $certPath /p $certPasswordPlain /fd SHA256 /tr http://timestamp.comodoca.com/rfc3161 /td SHA256 $msixPath
             if ($LASTEXITCODE -eq 0) {
               Write-Host "MSIX package signed successfully."
             } else {
@@ -180,7 +189,6 @@ jobs:
           }
 
           Remove-Item $certPath -Force -ErrorAction SilentlyContinue
-          Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 
       - name: Upload artifact
         if: always()
