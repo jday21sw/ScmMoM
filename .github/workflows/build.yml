@@ -51,3 +51,4 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: publish/${{ matrix.artifact }}
+          retention-days: 2
