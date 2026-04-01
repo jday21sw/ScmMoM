@@ -154,7 +154,8 @@ jobs:
           Write-Host "Signing MSIX package..."
           $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=ScmMoM" -FriendlyName "ScmMoM Self-Signed Code Signing" -NotAfter (Get-Date).AddYears(10)
           $certPath = "$env:TEMP\ScmMoM-signing.pfx"
-          Export-PfxCertificate -Cert $cert -FilePath $certPath -ProtectTo $null | Out-Null
+          $certPassword = ConvertTo-SecureString -String "ScmMoM-CI-Build-Cert-Temp" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $certPassword | Out-Null
 
           $signtoolCandidates = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending
@@ -167,7 +168,7 @@ jobs:
 
           if ($signtool) {
             Write-Host "Using signtool: $signtool"
-            & $signtool sign /f $certPath /fd SHA256 /tr http://timestamp.comodoca.com/rfc3161 /td SHA256 $msixPath
+            & $signtool sign /f $certPath /p "ScmMoM-CI-Build-Cert-Temp" /fd SHA256 /tr http://timestamp.comodoca.com/rfc3161 /td SHA256 $msixPath
             if ($LASTEXITCODE -eq 0) {
               Write-Host "MSIX package signed successfully."
             } else {
