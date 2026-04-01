@@ -70,27 +70,18 @@ If you don't want to enable Developer Mode:
 
 Open PowerShell **as Administrator** and run:
 ```powershell
-# Install the MSIX package
+# Install the certificate from the release asset first
+$certPath = "C:\Path\To\ScmMoM-win-x64-signing.cer"
+Import-Certificate -FilePath $certPath -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+Import-Certificate -FilePath $certPath -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+
+# Then install the MSIX package
 $msixPath = "C:\Path\To\ScmMoM-win-x64.msix"
 Add-AppxPackage -Path $msixPath
 ```
-
-If you get a certificate verification error, you need to trust the self-signed certificate first:
-```powershell
-# Extract the certificate from the MSIX
-$msixPath = "C:\Path\To\ScmMoM-win-x64.msix"
-Rename-Item $msixPath "ScmMoM.zip"
-Expand-Archive "ScmMoM.zip" -DestinationPath "$env:TEMP\ScmMoM-extract" -Force
-
-# Find and import the certificate
-# The certificate is embedded in the AppxSignature.p7x file
-# For a simpler approach: right-click the .msix → Properties → Digital Signatures
-# → Details → View Certificate → Install Certificate → Trusted Root Certification Authorities
-```
-
-Alternatively, navigate to the folder where you downloaded the `.msix`, right-click it, select **Properties** → **Digital Signatures** → **Details** → **View Certificate** → **Install Certificate** and choose **Trusted Root Certification Authorities**.
-
-Then run the install command above.
+Download both files from the same release tag:
+- `ScmMoM-win-x64.msix`
+- `ScmMoM-win-x64-signing.cer`
 
 ## Provider Token Guidance
 

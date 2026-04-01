@@ -156,6 +156,7 @@ jobs:
           $certPath = "$env:TEMP\ScmMoM-signing.pfx"
           $certPassword = ConvertTo-SecureString -String "ScmMoM-CI-Build-Cert-Temp" -Force -AsPlainText
           Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $certPassword | Out-Null
+          Export-Certificate -Cert $cert -FilePath "${{ matrix.artifact }}-signing.cer" | Out-Null
 
           $signtoolCandidates = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
             Sort-Object FullName -Descending
@@ -192,6 +193,7 @@ jobs:
             *.rpm
             ${{ matrix.artifact }}.dmg
             ${{ matrix.artifact }}.msix
+            ${{ matrix.artifact }}-signing.cer
 
   security:
     needs: build
@@ -289,6 +291,7 @@ jobs:
           files=(
             artifacts/**/*.zip
             artifacts/**/*.msix
+            artifacts/**/*-signing.cer
             artifacts/**/*.deb
             artifacts/**/*.rpm
             artifacts/**/*.dmg
