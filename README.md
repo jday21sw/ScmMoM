@@ -54,6 +54,44 @@ On first launch:
 4. Enter a token and optionally enable Remember token.
 5. Select Connect & Launch.
 
+## Windows Installation (MSIX)
+
+Download the `.msix` package from the [latest release](https://github.com/jday21sw/ScmMoM/releases). The package is signed with a self-signed development certificate.
+
+### Installation Methods
+
+#### Option 1: Enable Developer Mode (Recommended for Development)
+1. Open **Settings** → **System** → **For developers**
+2. Enable **Developer Mode**
+3. Run the downloaded `.msix` file
+
+#### Option 2: Trust the Self-Signed Certificate
+If you don't want to enable Developer Mode:
+
+Open PowerShell **as Administrator** and run:
+```powershell
+# Install the MSIX package
+$msixPath = "C:\Path\To\ScmMoM-win-x64.msix"
+Add-AppxPackage -Path $msixPath
+```
+
+If you get a certificate verification error, you need to trust the self-signed certificate first:
+```powershell
+# Extract the certificate from the MSIX
+$msixPath = "C:\Path\To\ScmMoM-win-x64.msix"
+Rename-Item $msixPath "ScmMoM.zip"
+Expand-Archive "ScmMoM.zip" -DestinationPath "$env:TEMP\ScmMoM-extract" -Force
+
+# Find and import the certificate
+# The certificate is embedded in the AppxSignature.p7x file
+# For a simpler approach: right-click the .msix → Properties → Digital Signatures
+# → Details → View Certificate → Install Certificate → Trusted Root Certification Authorities
+```
+
+Alternatively, navigate to the folder where you downloaded the `.msix`, right-click it, select **Properties** → **Digital Signatures** → **Details** → **View Certificate** → **Install Certificate** and choose **Trusted Root Certification Authorities**.
+
+Then run the install command above.
+
 ## Provider Token Guidance
 
 ### GitHub

@@ -150,6 +150,36 @@ jobs:
             exit 0
           }
 
+          # Sign the MSIX package with a self-signed certificate
+          Write-Host "Signing MSIX package..."
+          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=ScmMoM" -FriendlyName "ScmMoM Self-Signed Code Signing" -NotAfter (Get-Date).AddYears(10)
+          $certPath = "$env:TEMP\ScmMoM-signing.pfx"
+          Export-PfxCertificate -Cert $cert -FilePath $certPath -ProtectTo $null | Out-Null
+
+          $signtoolCandidates = Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending
+          $signtool = $signtoolCandidates |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) {
+            $signtool = $signtoolCandidates | Select-Object -First 1 -ExpandProperty FullName
+          }
+
+          if ($signtool) {
+            Write-Host "Using signtool: $signtool"
+            & $signtool sign /f $certPath /fd SHA256 /tr http://timestamp.comodoca.com/rfc3161 /td SHA256 $msixPath
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "MSIX package signed successfully."
+            } else {
+              Write-Warning "MSIX signing failed with exit code $LASTEXITCODE. Package will be published unsigned."
+            }
+          } else {
+            Write-Warning "signtool.exe not found. MSIX will not be signed."
+          }
+
+          Remove-Item $certPath -Force -ErrorAction SilentlyContinue
+          Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v7
